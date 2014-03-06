@@ -1,0 +1,26 @@
+allcams=false
+BlueIrisServerURL=http://192.168.0.132:80/
+overrideGridLayout=0x0
+startPositionAndSize=4480x-360x2560x1438
+loadStartPositionAndSizeUponAppStart=true
+preserveSizeWhenDragging=false
+disableWindowDragging=false
+# The format is: Blue Iris camera name, line break, refresh delay in milliseconds, comma, number of degrees to rotate image, line break, repeat.  To automatically populate this list, delete all but the first two lines of this file, be sure the BlueIrisServerURL is correct, and start the application again.  This file will be updated with a new camera list.
+right1
+250,0
+right1
+497,0
+right1
+250,0
+right1
+250,0
+right1
+250,270
+right1
+250,0
+right1
+250,0
+right1
+250,0
+right1
+250,0
