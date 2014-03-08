@@ -13,7 +13,7 @@ public class BIVSettings extends SerializableObjectBase
 	public int startPositionY = -1;
 	public int startSizeW = 1280;
 	public int startSizeH = 720;
-	public boolean borderless = true;
+	public boolean borderless = false;
 	public boolean restartBorderlessToggle = false;
 	public int imageRefreshDelayMS = 250;
 	public boolean bOverrideGridLayout = false;

@@ -8,6 +8,7 @@ import java.util.regex.Pattern;
 
 import org.brian.blueirisviewer.BlueIrisViewer;
 import org.brian.blueirisviewer.GameTime;
+import org.brian.blueirisviewer.ui.ServerSetupWnd;
 import org.brian.blueirisviewer.util.IntRunnable;
 import org.brian.blueirisviewer.util.Utilities;
 
@@ -31,6 +32,7 @@ public class Images
 	boolean abortThreads = false;
 	boolean isInitialized = false;
 	boolean isInitializing = false;
+	static boolean hasAutoOpenedServerSetup = false;
 
 	float imageWidth = 1;
 	float imageHeight = 1;
@@ -284,6 +286,11 @@ public class Images
 			BlueIrisViewer.ui.DrawText(batch,
 					"If you need to change the server address, press 'o' to open the options.", 10,
 					BlueIrisViewer.fScreenHeight - 35);
+			if(BlueIrisViewer.bivSettings.serverURL.equals("http://127.0.0.1:80/") && !hasAutoOpenedServerSetup)
+			{
+				hasAutoOpenedServerSetup = true;
+				BlueIrisViewer.ui.openWindow(ServerSetupWnd.class);
+			}
 		}
 		else if (textures.size() == 0)
 		{
@@ -291,6 +298,11 @@ public class Images
 			BlueIrisViewer.ui.DrawText(batch,
 					"If you need to change the server address, press 'o' to open the options.", 10,
 					BlueIrisViewer.fScreenHeight - 35);
+			if(BlueIrisViewer.bivSettings.serverURL.equals("http://127.0.0.1:80/") && !hasAutoOpenedServerSetup)
+			{
+				hasAutoOpenedServerSetup = true;
+				BlueIrisViewer.ui.openWindow(ServerSetupWnd.class);
+			}
 		}
 		else
 		{

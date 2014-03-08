@@ -50,7 +50,7 @@ public class BlueIrisViewer implements ApplicationListener
 
 	public BlueIrisViewer(WindowHelper windowHelper)
 	{
-		this.windowHelper = windowHelper;
+		BlueIrisViewer.windowHelper = windowHelper;
 	}
 
 	@Override
