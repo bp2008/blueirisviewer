@@ -9,8 +9,11 @@ import java.util.regex.Pattern;
 import org.brian.blueirisviewer.BlueIrisViewer;
 import org.brian.blueirisviewer.GameTime;
 import org.brian.blueirisviewer.ui.ServerSetupWnd;
+import org.brian.blueirisviewer.util.Encryption;
+import org.brian.blueirisviewer.util.IntPoint;
 import org.brian.blueirisviewer.util.IntRunnable;
 import org.brian.blueirisviewer.util.Utilities;
+import org.brian.blueirisviewer.util.string;
 
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
@@ -21,6 +24,7 @@ import com.badlogic.gdx.math.Rectangle;
 public class Images
 {
 	Vector<String> cameraNames = new Vector<String>();
+	Vector<IntPoint> cameraResolutions = new Vector<IntPoint>();
 	Vector<String> imageURLs = new Vector<String>();
 	Vector<Integer> sleepDelays = new Vector<Integer>();
 	Vector<Integer> rotateDegrees = new Vector<Integer>();
@@ -32,10 +36,15 @@ public class Images
 	boolean abortThreads = false;
 	boolean isInitialized = false;
 	boolean isInitializing = false;
+	boolean serverRequiresAuthentication = false;
 	static boolean hasAutoOpenedServerSetup = false;
 
 	float imageWidth = 1;
 	float imageHeight = 1;
+	AtomicInteger aImageWidth = new AtomicInteger(320);
+	AtomicInteger aImageHeight = new AtomicInteger(240);
+	AtomicInteger screenWidth = new AtomicInteger(1280);
+	AtomicInteger screenHeight = new AtomicInteger(720);
 	int cols = 1;
 	int rows = 1;
 	long connectedAtTime = 0;
@@ -86,129 +95,275 @@ public class Images
 
 	public void Initialize()
 	{
+		Initialize(false);
+	}
+
+	private void Initialize(final boolean isAuthenticationRetry)
+	{
 		if (isInitialized || isInitializing)
 			return;
 		Thread thrStart = new Thread(new Runnable()
 		{
 			public void run()
 			{
-				if (isInitialized)
+				if (isInitialized || isInitializing)
 					return;
-				try
+				synchronized (Images.this)
 				{
-					isInitializing = true;
-					String jpegPullPage = Utilities.getStringViaHttpConnection(BlueIrisViewer.bivSettings.serverURL
-							+ "jpegpull.htm");
-					if (jpegPullPage == null || jpegPullPage.equals(""))
+					if (!isAuthenticationRetry)
+						Utilities.sessionCookie = "";
+					if (isInitialized || isInitializing)
 						return;
-					// Precalculate what we can about where to draw images
-					synchronized (BlueIrisViewer.getResizeLock())
+					try
 					{
-						Matcher m = cameraPattern.matcher(jpegPullPage);
-						while (m.find())
+						screenWidth.set(BlueIrisViewer.iScreenWidth);
+						screenHeight.set(BlueIrisViewer.iScreenHeight);
+						isInitializing = true;
+						String processedServerURL = ProcessURL(BlueIrisViewer.bivSettings.serverURL);
+						String page = Utilities.getStringViaHttpConnection(processedServerURL + "jpegpull.htm");
+						if (page.contains("<title>Blue Iris Login</title>"))
 						{
-							String data = m.group(1);
-							String[] parts = data.split(";");
-							if (parts.length > 3)
-							{
-								int width = Utilities.ParseInt(parts[1], 2500);
-								int height = Utilities.ParseInt(parts[2], 1000);
-								String[] urlParts = parts[3].split("/");
-								if (urlParts.length > 0)
-								{
-									String name = urlParts[urlParts.length - 1];
-									int delay = (width * height) / 10000;
-									if (delay < 250)
-										delay = 250;
-									if (!m.group(2).startsWith("+") && !name.equals("index"))
-									{
-										cameraNames.add(name);
-										imageURLs.add(BlueIrisViewer.bivSettings.serverURL + "image/" + name);
-										sleepDelays.add(delay);
-										rotateDegrees.add(0);
-									}
-								}
-							}
+							// Page is login page
+							if (isAuthenticationRetry)
+								return;
+							serverRequiresAuthentication = true;
+							HandleLogin(processedServerURL);
+							isInitializing = false;
+							Initialize(true);
+							return;
 						}
-						double sqrt = Math.sqrt(imageURLs.size());
-						cols = (int) Math.ceil(sqrt);
-						rows = (int) sqrt;
-						if (cols * rows < imageURLs.size())
-							rows++;
-						HandleOverrideGridSize();
-						imageWidth = BlueIrisViewer.fScreenWidth / cols;
-						imageHeight = BlueIrisViewer.fScreenHeight / rows;
-					}
-
-					// Populate texture list
-					for (int i = 0; i < imageURLs.size(); i++)
-						textures.add(null);
-
-					// Create downloader threads
-					for (int i = 0; i < imageURLs.size(); i++)
-						downloaderThreads.add(new Thread(new IntRunnable(i)
+						else
 						{
-							public void run()
+							serverRequiresAuthentication = false;
+							if (string.IsNullOrEmpty(page))
+								return; // Page is empty!
+						}
+
+						// Assume page is jpegpull as requested.
+
+						// Precalculate what we can about where to draw images
+						synchronized (BlueIrisViewer.getResizeLock())
+						{
+							Matcher m = cameraPattern.matcher(page);
+							while (m.find())
 							{
-								String myUrl = imageURLs.get(myInt);
-								DownloadedTexture dt = null;
-								while (!abortThreads)
+								String data = m.group(1);
+								String[] parts = data.split(";");
+								if (parts.length > 3)
 								{
-									int sleepFor = BlueIrisViewer.bivSettings.imageRefreshDelayMS;// sleepDelays.get(myInt).intValue();
-									// System.out.println("Downloading " + myUrl + Utilities.getTimeInMs());
-
-									if (!downloadedTextures.contains(dt))
+									int width = Utilities.ParseInt(parts[1], 2500);
+									int height = Utilities.ParseInt(parts[2], 1000);
+									String[] urlParts = parts[3].split("/");
+									if (urlParts.length > 0)
 									{
-										Pixmap pm = Images.Get(myUrl);
-
-										if (abortThreads)
+										String name = urlParts[urlParts.length - 1];
+										int delay = (width * height) / 10000; // Note: This delay is not used
+										if (delay < 250)
+											delay = 250;
+										if (!m.group(2).startsWith("+") && !name.equals("index"))
 										{
-											if (pm != null)
-												pm.dispose();
-											break;
-										}
-
-										if (pm != null)
-										{
-											dt = new DownloadedTexture(pm, myInt);
-											downloadedTextures.add(dt);
-										}
-
-										int full = fullScreenedImageId.get();
-
-										if (full == myInt)
-											sleepFor = 0;
-										else if (full > -1)
-											sleepFor += 1000;
-									}
-									else if (sleepFor < 25)
-										sleepFor = 25; // If we get here, the downloader is getting ahead of the render
-														// thread.
-
-									if (sleepFor > 0)
-									{
-										try
-										{
-											Thread.sleep(sleepFor);
-										}
-										catch (InterruptedException e)
-										{
+											cameraNames.add(name);
+											cameraResolutions.add(new IntPoint(width, height));
+											imageURLs.add(processedServerURL + "image/" + name);
+											sleepDelays.add(delay);
+											rotateDegrees.add(0);
 										}
 									}
 								}
 							}
-						}));
+							double sqrt = Math.sqrt(imageURLs.size());
+							cols = (int) Math.ceil(sqrt);
+							rows = (int) sqrt;
+							if (cols * rows < imageURLs.size())
+								rows++;
+							HandleOverrideGridSize();
+							imageWidth = BlueIrisViewer.fScreenWidth / cols;
+							imageHeight = BlueIrisViewer.fScreenHeight / rows;
+							aImageWidth.set((int) Math.ceil(imageWidth));
+							aImageHeight.set((int) Math.ceil(imageHeight));
+						}
 
-					// Start downloader threads
-					for (int i = 0; i < downloaderThreads.size(); i++)
-						downloaderThreads.get(i).start();
+						// Populate texture list
+						for (int i = 0; i < imageURLs.size(); i++)
+							textures.add(null);
 
-					isInitialized = true;
+						// Create downloader threads
+						for (int i = 0; i < imageURLs.size(); i++)
+							downloaderThreads.add(new Thread(new IntRunnable(i)
+							{
+								public void run()
+								{
+									String myUrl = imageURLs.get(myInt);
+									DownloadedTexture dt = null;
+									while (!abortThreads)
+									{
+										int sleepFor = BlueIrisViewer.bivSettings.imageRefreshDelayMS;// sleepDelays.get(myInt).intValue();
+										// System.out.println("Downloading " + myUrl + Utilities.getTimeInMs());
+
+										if (!downloadedTextures.contains(dt))
+										{
+											int full = fullScreenedImageId.get();
+
+											Pixmap pm = Images.Get(myUrl + GetImageModeQueryString(myInt, full));
+
+											if (abortThreads)
+											{
+												if (pm != null)
+													pm.dispose();
+												break;
+											}
+
+											if (pm != null)
+											{
+												dt = new DownloadedTexture(pm, myInt);
+												downloadedTextures.add(dt);
+											}
+
+											if (full == myInt)
+												sleepFor = 0;
+											else if (full > -1)
+												sleepFor += 1000;
+										}
+										else if (sleepFor < 25)
+											sleepFor = 25; // If we get here, the downloader is getting ahead of the
+															// render
+															// thread.
+
+										if (sleepFor > 0)
+										{
+											try
+											{
+												Thread.sleep(sleepFor);
+											}
+											catch (InterruptedException e)
+											{
+											}
+										}
+									}
+								}
+
+								private String GetImageModeQueryString(int cameraIndex, int fullScreenCameraIndex)
+								{
+									String queryStr = "";
+									if (BlueIrisViewer.bivSettings.imageResolutionMode == 0)
+									{
+										// Highest efficiency
+										IntPoint nativeResolution = cameraResolutions.get(cameraIndex);
+										int newWidth;
+										if (fullScreenCameraIndex == cameraIndex)
+											newWidth = ReduceImageDimensionsAndReturnNewWidth(nativeResolution.x,
+													nativeResolution.y, screenWidth.get(), screenHeight.get());
+										else
+										{
+											newWidth = ReduceImageDimensionsAndReturnNewWidth(nativeResolution.x,
+													nativeResolution.y, aImageWidth.get(), aImageHeight.get());
+										}
+										queryStr += "?w=" + newWidth;
+									}
+									else if (BlueIrisViewer.bivSettings.imageResolutionMode == 1)
+									{
+										// Balanced
+										IntPoint nativeResolution = cameraResolutions.get(cameraIndex);
+										int newWidth;
+										if (fullScreenCameraIndex == cameraIndex)
+											newWidth = ReduceImageDimensionsAndReturnNewWidth(nativeResolution.x,
+													nativeResolution.y, screenWidth.get(), screenHeight.get());
+										else
+										{
+											newWidth = ReduceImageDimensionsAndReturnNewWidth(nativeResolution.x,
+													nativeResolution.y,
+													Math.min(aImageWidth.get() * 2, screenWidth.get()),
+													Math.min(aImageHeight.get() * 2, screenHeight.get()));
+										}
+										queryStr += "?w=" + newWidth;
+									}
+									else if (BlueIrisViewer.bivSettings.imageResolutionMode == 2)
+									{
+										// High Quality
+										IntPoint nativeResolution = cameraResolutions.get(cameraIndex);
+										int newWidth;
+										if (fullScreenCameraIndex == cameraIndex)
+											newWidth = ReduceImageDimensionsAndReturnNewWidth(nativeResolution.x,
+													nativeResolution.y, screenWidth.get() * 2, screenHeight.get() * 2);
+										else
+										{
+											newWidth = ReduceImageDimensionsAndReturnNewWidth(nativeResolution.x,
+													nativeResolution.y,
+													Math.min(aImageWidth.get() * 2, screenWidth.get() * 2),
+													Math.min(aImageHeight.get() * 2, screenHeight.get() * 2));
+										}
+										queryStr += "?w=" + newWidth;
+									}
+									else if (BlueIrisViewer.bivSettings.imageResolutionMode == 3)
+									{
+										// Maximum Quality
+										IntPoint nativeResolution = cameraResolutions.get(cameraIndex);
+										int newWidth = ReduceImageDimensionsAndReturnNewWidth(nativeResolution.x,
+												nativeResolution.y, screenWidth.get() * 2, screenHeight.get() * 2);
+										queryStr += "?w=" + newWidth;
+									}
+									else
+									{
+										// No Optimizations
+									}
+
+									if (BlueIrisViewer.bivSettings.overrideJpegQuality)
+									{
+										if (string.IsNullOrEmpty(queryStr))
+											queryStr += "?";
+										else
+											queryStr += "&";
+										queryStr += "q=" + BlueIrisViewer.bivSettings.jpegQuality;
+									}
+									return queryStr;
+								}
+							}));
+
+						// Start downloader threads
+						for (int i = 0; i < downloaderThreads.size(); i++)
+							downloaderThreads.get(i).start();
+
+						isInitialized = true;
+					}
+					finally
+					{
+						isInitializing = false;
+					}
 				}
-				finally
+			}
+
+			private void HandleLogin(String processedServerURL)
+			{
+				Utilities.getStringViaHttpConnection(processedServerURL
+						+ "?page=jpegpull.htm&login="
+						+ Utilities.Hex_MD5(BlueIrisViewer.bivSettings.username + ":" + Utilities.sessionCookie + ":"
+								+ Encryption.Decrypt(BlueIrisViewer.bivSettings.password)));
+			}
+
+			private String ProcessURL(String serverURL)
+			{
+				StringBuilder sb = new StringBuilder();
+				if (serverURL.startsWith("http://"))
 				{
-					isInitializing = false;
 				}
+				else if (serverURL.startsWith("https://"))
+				{
+				}
+				else if (serverURL.startsWith("://"))
+					sb.append("http");
+				else if (serverURL.startsWith("//"))
+					sb.append("http:");
+				else if (serverURL.startsWith("/"))
+					sb.append("http:/");
+				else
+					sb.append("http://");
+
+				sb.append(serverURL);
+
+				if (!serverURL.endsWith("/"))
+					sb.append("/");
+
+				return sb.toString();
 			}
 		});
 		thrStart.start();
@@ -273,20 +428,23 @@ public class Images
 
 		if (isInitializing)
 		{
-			BlueIrisViewer.ui
-					.DrawText(batch, "Attempting to contact server ...", 10, BlueIrisViewer.fScreenHeight - 15);
 			BlueIrisViewer.ui.DrawText(batch,
-					"If you need to change the server address, press 'o' to open the options.", 10,
+					(serverRequiresAuthentication ? "Attempting to log in with configured user name and password ..."
+							: "Attempting to contact server ..."), 10, BlueIrisViewer.fScreenHeight - 15);
+			BlueIrisViewer.ui.DrawText(batch,
+					"If you need to change the server options, press 'o' to open the options.", 10,
 					BlueIrisViewer.fScreenHeight - 35);
 		}
 		else if (!isInitialized)
 		{
-			BlueIrisViewer.ui.DrawText(batch, "Unable to contact server. Please check server address.", 10,
+			BlueIrisViewer.ui.DrawText(batch,
+					(serverRequiresAuthentication ? "Unable to log in with configured user name and password."
+							: "Unable to contact server. Please check server address."), 10,
 					BlueIrisViewer.fScreenHeight - 15);
 			BlueIrisViewer.ui.DrawText(batch,
-					"If you need to change the server address, press 'o' to open the options.", 10,
+					"If you need to change the server options, press 'o' to open the options.", 10,
 					BlueIrisViewer.fScreenHeight - 35);
-			if(BlueIrisViewer.bivSettings.serverURL.equals("http://127.0.0.1:80/") && !hasAutoOpenedServerSetup)
+			if (BlueIrisViewer.bivSettings.serverURL.equals("http://127.0.0.1:80/") && !hasAutoOpenedServerSetup)
 			{
 				hasAutoOpenedServerSetup = true;
 				BlueIrisViewer.ui.openWindow(ServerSetupWnd.class);
@@ -296,9 +454,9 @@ public class Images
 		{
 			BlueIrisViewer.ui.DrawText(batch, "Unrecognized server!", 10, BlueIrisViewer.fScreenHeight - 15);
 			BlueIrisViewer.ui.DrawText(batch,
-					"If you need to change the server address, press 'o' to open the options.", 10,
+					"If you need to change the server options, press 'o' to open the options.", 10,
 					BlueIrisViewer.fScreenHeight - 35);
-			if(BlueIrisViewer.bivSettings.serverURL.equals("http://127.0.0.1:80/") && !hasAutoOpenedServerSetup)
+			if (BlueIrisViewer.bivSettings.serverURL.equals("http://127.0.0.1:80/") && !hasAutoOpenedServerSetup)
 			{
 				hasAutoOpenedServerSetup = true;
 				BlueIrisViewer.ui.openWindow(ServerSetupWnd.class);
@@ -306,7 +464,7 @@ public class Images
 		}
 		else
 		{
-			if(connectedAtTime == 0)
+			if (connectedAtTime == 0)
 				connectedAtTime = GameTime.getRealTime();
 			// Everything seems fine.
 			int full = fullScreenedImageId.get();
@@ -355,15 +513,27 @@ public class Images
 							tex.getHeight(), false, false);
 				}
 			}
-			if(connectedAtTime + 10000 > GameTime.getRealTime())
+			if (connectedAtTime + 10000 > GameTime.getRealTime())
 			{
-				BlueIrisViewer.ui
-				.DrawText(batch, "Connected!", 10, BlueIrisViewer.fScreenHeight - 15);
-		BlueIrisViewer.ui.DrawText(batch,
-				"Press 'o' to open the options.", 10,
-				BlueIrisViewer.fScreenHeight - 35);
+				BlueIrisViewer.ui.DrawText(batch, "Connected!", 10, BlueIrisViewer.fScreenHeight - 15);
+				BlueIrisViewer.ui.DrawText(batch, "Press 'o' to open the options.", 10,
+						BlueIrisViewer.fScreenHeight - 35);
 			}
 		}
+	}
+
+	private int ReduceImageDimensionsAndReturnNewWidth(int originalWidth, int originalHeight, int destinationWidth,
+			int destinationHeight)
+	{
+		double ow = originalWidth;
+		double oh = originalHeight;
+		double rw = destinationWidth;
+		double rh = destinationHeight;
+		double newWidth = rw;
+		double newHeight = oh / ow * rw;
+		if (newHeight > rh)
+			newWidth = ow / oh * rh;
+		return (int) newWidth;
 	}
 
 	private void FitImageIntoRect(Texture tex, Rectangle rect, boolean rotate90)
@@ -426,6 +596,8 @@ public class Images
 
 	public void resize(int w, int h)
 	{
+		screenWidth.set(w);
+		screenHeight.set(h);
 		if (BlueIrisViewer.bivSettings != null)
 		{
 			double sqrt = Math.sqrt(imageURLs.size());
@@ -436,6 +608,8 @@ public class Images
 			HandleOverrideGridSize();
 			imageWidth = (float) w / cols;
 			imageHeight = (float) h / rows;
+			aImageWidth.set((int) Math.ceil(imageWidth));
+			aImageHeight.set((int) Math.ceil(imageHeight));
 		}
 	}
 

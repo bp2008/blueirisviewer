@@ -2,6 +2,7 @@ package org.brian.blueirisviewer.ui;
 
 import org.brian.blueirisviewer.BlueIrisViewer;
 import org.brian.blueirisviewer.images.Images;
+import org.brian.blueirisviewer.util.Encryption;
 
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
@@ -26,7 +27,7 @@ public class ServerSetupWnd extends UIElement
 		table.columnDefaults(0).align(Align.right).padRight(10);
 		table.columnDefaults(1).align(Align.left);
 		table.pad(10, 10, 10, 10);
-		
+
 		window.setTitle("Server Setup");
 
 		table.add(new Label("Server Address: ", skin));
@@ -45,8 +46,44 @@ public class ServerSetupWnd extends UIElement
 
 		table.add().height(10);
 		table.row();
-		
-		final TextButton btnTryNewAddress = new TextButton("Try new server address now", skin);
+
+		table.add(new Label("User Name: ", skin));
+		TextField txtUsername = new TextField(BlueIrisViewer.bivSettings.username, skin);
+		txtUsername.setTextFieldListener(new TextField.TextFieldListener()
+		{
+			@Override
+			public void keyTyped(TextField textField, char key)
+			{
+				BlueIrisViewer.bivSettings.username = textField.getText();
+				BlueIrisViewer.bivSettings.Save();
+			}
+		});
+		table.add(txtUsername).width(250);
+		table.row();
+
+		table.add().height(10);
+		table.row();
+
+		table.add(new Label("Password: ", skin));
+		TextField txtPassword = new TextField("", skin);
+		txtPassword.setPasswordMode(true);
+		txtPassword.setPasswordCharacter('*');
+		txtPassword.setTextFieldListener(new TextField.TextFieldListener()
+		{
+			@Override
+			public void keyTyped(TextField textField, char key)
+			{
+				BlueIrisViewer.bivSettings.password = Encryption.Encrypt(textField.getText());
+				BlueIrisViewer.bivSettings.Save();
+			}
+		});
+		table.add(txtPassword).width(250);
+		table.row();
+
+		table.add().height(10);
+		table.row();
+
+		final TextButton btnTryNewAddress = new TextButton("Reconnect with new configuration", skin);
 		btnTryNewAddress.addListener(new ChangeListener()
 		{
 			@Override
@@ -61,7 +98,7 @@ public class ServerSetupWnd extends UIElement
 
 		table.add().height(10);
 		table.row();
-		
+
 		final TextButton btnClose = new TextButton("Close", skin);
 		btnClose.addListener(new ChangeListener()
 		{
@@ -72,7 +109,7 @@ public class ServerSetupWnd extends UIElement
 				BlueIrisViewer.images.Initialize();
 			}
 		});
-		table.add(btnClose).colspan(2);
+		table.add(btnClose).colspan(2).align(Align.right);
 		table.row();
 	}
 

@@ -153,7 +153,7 @@ public class CameraLayoutWnd extends UIElement
 				BlueIrisViewer.images.Initialize();
 			}
 		});
-		table.add(btnClose).colspan(2).align(Align.center);
+		table.add(btnClose).colspan(2).align(Align.right);
 		table.row();
 	}
 

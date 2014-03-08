@@ -19,4 +19,9 @@ public class BIVSettings extends SerializableObjectBase
 	public boolean bOverrideGridLayout = false;
 	public int imageFillMode = 0; // 0: "Preserve Aspect Ratio", 1: "Stretch to Fill"
 	public boolean modalUI = true;
+	public String username = "";
+	public String password = "";
+	public int imageResolutionMode = 2;
+	public boolean overrideJpegQuality = false;
+	public int jpegQuality = 60;
 }

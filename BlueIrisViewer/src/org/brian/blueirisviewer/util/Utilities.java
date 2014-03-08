@@ -13,6 +13,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Calendar;
@@ -29,8 +31,8 @@ import javax.net.ssl.X509TrustManager;
 
 public class Utilities
 {
-	private static String sessionCookie = null;
-	
+	public static String sessionCookie = null;
+
 	public static long getTimeInMs()
 	{
 		Calendar c = Calendar.getInstance();
@@ -115,11 +117,11 @@ public class Utilities
 				BufferedOutputStream bOutStream = new BufferedOutputStream(out);
 				bOutStream.write(postData.getData());
 			}
-			
+
 			String sCookie = sessionCookie;
 			if (sCookie != null && !sCookie.equals(""))
 				con.setRequestProperty("Cookie", "session=" + sCookie);
-			
+
 			InputStream inStream = con.getInputStream();
 			String enc = con.getContentEncoding();
 
@@ -207,7 +209,7 @@ public class Utilities
 				sessionCookie = session;
 		}
 	}
-	
+
 	/**
 	 * Writes the specified data to the file, deleting any previously existing file content.
 	 * 
@@ -477,5 +479,36 @@ public class Utilities
 		{
 			return val;
 		}
+	}
+
+	/**
+	 * Decodes the message as UTF-8, MD5 hashes the resulting byte array, and converts the MD5 hash to hexidecimal
+	 * String format. May return null if there is an error.
+	 * 
+	 * @param message
+	 *            The message to hash.
+	 * @return
+	 */
+	public static String Hex_MD5(String message)
+	{
+		try
+		{
+			return Encryption.BytesToHex(MD5(message.getBytes("UTF-8")));
+		}
+		catch (NoSuchAlgorithmException e)
+		{
+			return null;
+		}
+		catch (UnsupportedEncodingException e)
+		{
+			return null;
+		}
+	}
+
+	public static byte[] MD5(byte[] message) throws NoSuchAlgorithmException
+	{
+		MessageDigest md = MessageDigest.getInstance("MD5");
+		byte[] thedigest = md.digest(message);
+		return thedigest;
 	}
 }

@@ -19,7 +19,6 @@ public class AboutWnd extends UIElement
 	public AboutWnd(Skin skin)
 	{
 		super(skin);
-
 	}
 
 	private Texture texLibGDXImage;
@@ -40,7 +39,7 @@ public class AboutWnd extends UIElement
 		table.add(scrollPane);
 		table.row();
 
-		scrollTable.add("BlueIrisView Version 2.0");
+		scrollTable.add("BlueIrisView Version 2.1");
 		scrollTable.row();
 
 		scrollTable.add().height(10);
@@ -88,7 +87,7 @@ public class AboutWnd extends UIElement
 				hide();
 			}
 		});
-		table.add(btnClose).colspan(2).align(Align.center);
+		table.add(btnClose).colspan(2).align(Align.right);
 		table.row();
 	}
 

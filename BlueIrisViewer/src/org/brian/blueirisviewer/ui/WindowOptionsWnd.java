@@ -127,6 +127,11 @@ public class WindowOptionsWnd extends UIElement
 				IntRectangle i = new IntRectangle(Utilities.ParseInt(txtWindowX.getText().toString(), 0), Utilities
 						.ParseInt(txtWindowY.getText().toString(), 0), Utilities.ParseInt(txtWindowW.getText()
 						.toString(), 1280), Utilities.ParseInt(txtWindowH.getText().toString(), 720));
+				BlueIrisViewer.bivSettings.startPositionX = i.x;
+				BlueIrisViewer.bivSettings.startPositionY = i.y;
+				BlueIrisViewer.bivSettings.startSizeW = i.width;
+				BlueIrisViewer.bivSettings.startSizeH = i.height;
+				BlueIrisViewer.bivSettings.Save();
 				BlueIrisViewer.windowHelper.SetWindowRectangle(i);
 			}
 		});
@@ -166,7 +171,7 @@ public class WindowOptionsWnd extends UIElement
 				hide();
 			}
 		});
-		table.add(btnClose).colspan(2).align(Align.center);
+		table.add(btnClose).colspan(2).align(Align.right);
 		table.row();
 	}
 

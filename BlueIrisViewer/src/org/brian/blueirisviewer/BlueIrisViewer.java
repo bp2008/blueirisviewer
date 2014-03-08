@@ -155,7 +155,7 @@ public class BlueIrisViewer implements ApplicationListener
 	public void pause()
 	{
 		GameTime.pause();
-		if (windowHelper != null && bivSettings != null && !bivSettings.disableWindowDragging)
+		if (windowHelper != null && bivSettings != null)
 		{
 			IntRectangle currentPosition = windowHelper.GetWindowRectangle();
 			bivSettings.startPositionX = currentPosition.x;
