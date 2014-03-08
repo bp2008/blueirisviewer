@@ -1,4 +1,4 @@
-package org.brian.blueirisviewer;
+package org.brian.blueirisviewer.util;
 
 public abstract class IntRunnable implements Runnable
 {

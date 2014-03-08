@@ -1,4 +1,4 @@
-package org.brian.blueirisviewer;
+package org.brian.blueirisviewer.util;
 
 public class IntRectangle
 {

@@ -1,22 +1,36 @@
-package org.brian.blueirisviewer;
+package org.brian.blueirisviewer.util;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.Calendar;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.zip.GZIPInputStream;
+
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 
 public class Utilities
 {
 	private static String sessionCookie = null;
-
+	
 	public static long getTimeInMs()
 	{
 		Calendar c = Calendar.getInstance();
@@ -25,49 +39,127 @@ public class Utilities
 	}
 
 	/**
-	 * Gets a byte[] of data from the specified URL. If the connection is redirected to a different host, the Android
-	 * browser is opened and sent to the new address, and an empty byte array is returned from this function.
+	 * Gets a byte[] of data from the specified URL using POST or GET as determined by the arguments.
 	 * 
 	 * @param sUrl
 	 *            The URL to get data from.
+	 * @param postData
+	 *            Data to POST. If null, the request will be a GET request with no payload instead.
 	 * @return
 	 */
-	public static byte[] getViaHttpConnection(String sUrl)
+	public static byte[] getViaHttpConnection(String sUrl, PostData postData)
 	{
 		if (sUrl == null || sUrl.equals(""))
 			return new byte[0];
 		HttpURLConnection con = null;
 		InputStream in = null;
+		OutputStream out = null;
 		try
 		{
 			URL url = new URL(sUrl);
 			con = (HttpURLConnection) url.openConnection();
+			// Handle SSL connection if it is an https URL
+			if (HttpsURLConnection.class.isInstance(con))
+			{
+				HttpsURLConnection sCon = (HttpsURLConnection) con;
 
+				TrustManager[] trustAllCerts = new TrustManager[] { new X509TrustManager()
+				{
+					private final X509Certificate[] _AcceptedIssuers = new X509Certificate[] {};
+
+					public void checkClientTrusted(X509Certificate[] chain, String authType)
+							throws CertificateException
+					{
+					}
+
+					public void checkServerTrusted(X509Certificate[] chain, String authType)
+							throws CertificateException
+					{
+					}
+
+					public X509Certificate[] getAcceptedIssuers()
+					{
+						return _AcceptedIssuers;
+					}
+				} };
+
+				try
+				{
+					SSLContext sc = SSLContext.getInstance("TLS");
+					sc.init(null, trustAllCerts, new java.security.SecureRandom());
+
+					sCon.setSSLSocketFactory(sc.getSocketFactory());
+					sCon.setHostnameVerifier(new HostnameVerifier()
+					{
+						public boolean verify(String arg0, SSLSession arg1)
+						{
+							return true;
+						}
+					});
+				}
+				catch (Exception ex)
+				{
+					Logger.debug(ex, Utilities.class);
+				}
+			}
 			con.setConnectTimeout(10000);
 			con.setReadTimeout(30000);
-
+			con.setRequestProperty("User-Agent", "BlueIrisViewer");
+			con.setRequestProperty("Accept-Encoding", "gzip");
+			if (postData != null)
+			{
+				con.setRequestMethod("POST");
+				con.setRequestProperty("Content-Length", String.valueOf(postData.getData().length));
+				con.setRequestProperty("Content-Type", postData.getContentType());
+				out = con.getOutputStream();
+				BufferedOutputStream bOutStream = new BufferedOutputStream(out);
+				bOutStream.write(postData.getData());
+			}
+			
 			String sCookie = sessionCookie;
 			if (sCookie != null && !sCookie.equals(""))
 				con.setRequestProperty("Cookie", "session=" + sCookie);
-
+			
 			InputStream inStream = con.getInputStream();
+			String enc = con.getContentEncoding();
 
 			in = new BufferedInputStream(inStream);
+			if (enc != null && string.ToLower(enc).equals("gzip"))
+				in = new GZIPInputStream(inStream);
 
-			ByteArrayOutputStream out = new ByteArrayOutputStream();
-			byte[] buf = new byte[8192];
-			int read = 0;
-			while (read != -1)
+			ByteArrayOutputStream baout = null;
+			try
 			{
-				out.write(buf, 0, read);
-				read = in.read(buf);
+				baout = new ByteArrayOutputStream();
+				byte[] buf = new byte[8192];
+				int read = 0;
+				while (read != -1)
+				{
+					baout.write(buf, 0, read);
+					read = in.read(buf);
+				}
+				HandleSetCookie(con.getHeaderField("Set-Cookie"));
+				return baout.toByteArray();
 			}
-			HandleSetCookie(con.getHeaderField("Set-Cookie"));
-			return out.toByteArray();
+			catch (Exception ex)
+			{
+				throw ex;
+			}
+			finally
+			{
+				try
+				{
+					baout.close();
+				}
+				catch (Exception ex)
+				{
+					// Ignore
+				}
+			}
 		}
 		catch (Exception ex)
 		{
-			System.out.println(ex.getMessage());
+			Logger.debug(ex, Utilities.class, "URL: " + sUrl);
 		}
 		finally
 		{
@@ -80,9 +172,25 @@ public class Utilities
 			}
 			catch (Exception ex)
 			{
+				// Ignore
+			}
+			try
+			{
+				if (out != null)
+					out.close();
+			}
+			catch (Exception ex)
+			{
+				// Ignore
 			}
 		}
 		return new byte[0];
+	}
+
+	public static String getStringViaHttpConnection(String sUrl)
+	{
+		byte[] bytes = getViaHttpConnection(sUrl, null);
+		return Utilities.ToString(bytes);
 	}
 
 	private static Pattern sessionCookieFinder = Pattern.compile("session=(.*?); path=/;");
@@ -99,13 +207,7 @@ public class Utilities
 				sessionCookie = session;
 		}
 	}
-
-	public static String getStringViaHttpConnection(String sUrl)
-	{
-		byte[] bytes = getViaHttpConnection(sUrl);
-		return Utilities.ToString(bytes);
-	}
-
+	
 	/**
 	 * Writes the specified data to the file, deleting any previously existing file content.
 	 * 
@@ -343,5 +445,37 @@ public class Utilities
 			f = defaultValue;
 		}
 		return f;
+	}
+
+	/**
+	 * Tries to URL Encode the specified String value. If an UnsupportedEncodingException is thrown, the String is
+	 * returned as-is.
+	 * 
+	 * @param val
+	 *            The String to URL Encode.
+	 * @return The URL Encoded String.
+	 */
+	public static String UrlEncode(String val)
+	{
+		try
+		{
+			return URLEncoder.encode(val, "UTF-8");
+		}
+		catch (UnsupportedEncodingException e)
+		{
+			return val;
+		}
+	}
+
+	public static String UrlDecode(String val)
+	{
+		try
+		{
+			return URLDecoder.decode(val, "UTF-8");
+		}
+		catch (UnsupportedEncodingException e)
+		{
+			return val;
+		}
 	}
 }

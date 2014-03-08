@@ -1,4 +1,5 @@
-package org.brian.blueirisviewer;
+package org.brian.blueirisviewer.util;
+
 
 public interface WindowHelper
 {
@@ -6,4 +7,5 @@ public interface WindowHelper
 	public void SetWindowRectangle(IntRectangle rect);
 	public void SetWindowPosition(IntPoint point);
 	public void SetWindowSize(IntPoint size);
+	public void SetWindowResizable(boolean resizable);
 }

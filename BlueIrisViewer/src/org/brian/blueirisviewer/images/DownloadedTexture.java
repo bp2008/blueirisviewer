@@ -1,4 +1,4 @@
-package org.brian.blueirisviewer;
+package org.brian.blueirisviewer.images;
 
 import com.badlogic.gdx.graphics.Pixmap;
 

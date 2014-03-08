@@ -1,5 +1,7 @@
 package org.brian.blueirisviewer;
 
+import org.brian.blueirisviewer.util.Utilities;
+
 /**
  * This class represents a time snapshot which updates only when the tick() function is called. This makes it ideal for
  * timing of game logic, since the time values will not update during rendering or anything.
