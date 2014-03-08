@@ -1,7 +1,7 @@
 allcams=false
 BlueIrisServerURL=http://192.168.0.132:80/
 overrideGridLayout=0x0
-startPositionAndSize=4480x-360x2560x1438
+startPositionAndSize=4487x-353x2560x1438
 loadStartPositionAndSizeUponAppStart=true
 preserveSizeWhenDragging=false
 disableWindowDragging=false

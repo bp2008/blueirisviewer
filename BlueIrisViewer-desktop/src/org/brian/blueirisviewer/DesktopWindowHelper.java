@@ -1,5 +1,8 @@
 package org.brian.blueirisviewer;
 
+import org.brian.blueirisviewer.util.IntPoint;
+import org.brian.blueirisviewer.util.IntRectangle;
+import org.brian.blueirisviewer.util.WindowHelper;
 import org.lwjgl.LWJGLException;
 import org.lwjgl.opengl.DisplayMode;
 
@@ -8,8 +11,8 @@ public class DesktopWindowHelper implements WindowHelper
 	@Override
 	public IntRectangle GetWindowRectangle()
 	{
-		return new IntRectangle(org.lwjgl.opengl.Display.getX(), org.lwjgl.opengl.Display.getY(),
-				org.lwjgl.opengl.Display.getWidth(), org.lwjgl.opengl.Display.getHeight());
+		return new IntRectangle(org.lwjgl.opengl.Display.getX(), org.lwjgl.opengl.Display.getY(), org.lwjgl.opengl.Display.getWidth(),
+				org.lwjgl.opengl.Display.getHeight());
 	}
 
 	@Override
@@ -43,5 +46,11 @@ public class DesktopWindowHelper implements WindowHelper
 		{
 			e.printStackTrace();
 		}
+	}
+
+	@Override
+	public void SetWindowResizable(boolean resizable)
+	{
+		org.lwjgl.opengl.Display.setResizable(resizable);
 	}
 }
