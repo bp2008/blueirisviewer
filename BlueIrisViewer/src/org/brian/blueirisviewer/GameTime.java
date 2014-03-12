@@ -15,9 +15,10 @@ public class GameTime
 	private static long realTime;
 	private static boolean isPaused;
 	private static long lastTickTime;
+	private static long next3SecondTickTime;
 	static
 	{
-		startTime = realTime = lastTickTime = Utilities.getTimeInMs();
+		startTime = realTime = lastTickTime = next3SecondTickTime = Utilities.getTimeInMs();
 		gameTime = 0;
 		isPaused = false;
 	}
@@ -48,6 +49,11 @@ public class GameTime
 		realTime = Utilities.getTimeInMs();
 		gameTime += realTime - lastTickTime;
 		lastTickTime = realTime;
+		if (realTime > next3SecondTickTime)
+		{
+			next3SecondTickTime = realTime + 3000;
+			Utilities.tick3Seconds();
+		}
 	}
 
 	/**

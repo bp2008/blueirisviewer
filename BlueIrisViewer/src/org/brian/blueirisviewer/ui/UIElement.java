@@ -9,9 +9,9 @@ import com.badlogic.gdx.scenes.scene2d.ui.Window;
 public abstract class UIElement
 {
 	private Table parent;
-	private Window window;	
+	private Window window;
 	private Table table;
-	
+
 	public UIElement(Skin skin)
 	{
 		UI.uiElements.add(this);
@@ -21,9 +21,9 @@ public abstract class UIElement
 		window.setModal(BlueIrisViewer.bivSettings.modalUI);
 		table = new Table(skin);
 		window.add(table);
-		
+
 		hide();
-		
+
 		parent.add(window);
 		onCreate(skin, window, table);
 	}
@@ -39,7 +39,7 @@ public abstract class UIElement
 		if (parent != null)
 			parent.remove();
 	}
-	
+
 	public boolean isShowing()
 	{
 		return parent != null && parent.hasParent();
@@ -47,14 +47,15 @@ public abstract class UIElement
 
 	public void onUpdate()
 	{
-		onUpdate(window, table);
+		if (isShowing())
+			onUpdate(window, table);
 	}
-	
+
 	public void setModal(boolean isModal)
 	{
 		window.setModal(isModal);
 	}
-	
+
 	public abstract void onCreate(final Skin skin, final Window window, final Table table);
 
 	protected abstract void onUpdate(final Window window, final Table table);

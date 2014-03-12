@@ -43,6 +43,11 @@ public class MainOptionsWnd extends UIElement
 		table.add().height(10);
 		table.row();
 
+		AddWindowButton(new InstantReplayWnd(skin), "Instant Replay", skin, table);
+
+		table.add().height(10);
+		table.row();
+
 		AddWindowButton(new AboutWnd(skin), "About", skin, table);
 
 		table.add().height(20);

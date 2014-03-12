@@ -75,6 +75,9 @@ public class WhatIsResolutionModeWnd extends UIElement
 								+ "Camera grid images appear sharper, and there is less temporary quality loss when full-screening a camera.",
 						skin)).padLeft(20).width(500);
 		scrollTable.row();
+		
+		scrollTable.add().height(10);
+		scrollTable.row();
 
 		scrollTable.add(GetWrapTrueLabel("High Quality", skin)).width(500);
 		scrollTable.row();

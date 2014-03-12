@@ -24,4 +24,6 @@ public class BIVSettings extends SerializableObjectBase
 	public int imageResolutionMode = 2;
 	public boolean overrideJpegQuality = false;
 	public int jpegQuality = 60;
+	public boolean instantReplayEnabled = false;
+	public int instantReplayHistoryLengthMinutes = 5;
 }

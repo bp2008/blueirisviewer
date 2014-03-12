@@ -12,9 +12,12 @@ import org.brian.blueirisviewer.util.WindowHelper;
 import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.InputProcessor;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL10;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.Pixmap.Format;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 
 public class BlueIrisViewer implements ApplicationListener
@@ -47,6 +50,8 @@ public class BlueIrisViewer implements ApplicationListener
 	private long skipThisResize = 0;
 
 	public static WindowHelper windowHelper;
+
+	public static Texture texLightGray, texDarkGreen, texDarkGray, texRed;
 
 	public BlueIrisViewer(WindowHelper windowHelper)
 	{
@@ -82,8 +87,21 @@ public class BlueIrisViewer implements ApplicationListener
 			ui.openWindow(WindowOptionsWnd.class);
 		}
 
+		texLightGray = Create1x1ColorTexture(new Color(0.667f, 0.667f, 0.667f, 0.667f));
+		texDarkGreen = Create1x1ColorTexture(new Color(0f, 0.444f, 0f, 0.5f));
+		texDarkGray = Create1x1ColorTexture(new Color(0.333f, 0.333f, 0.333f, 0.5f));
+		texRed = Create1x1ColorTexture(new Color(1f, 0f, 0f, 0.667f));
+
 		images = new Images();
 		images.Initialize();
+	}
+
+	private Texture Create1x1ColorTexture(Color color)
+	{
+		Pixmap pixmap = new Pixmap(1, 1, Format.RGBA8888);
+		pixmap.setColor(color);
+		pixmap.fill();
+		return new Texture(pixmap);
 	}
 
 	@Override
@@ -92,6 +110,11 @@ public class BlueIrisViewer implements ApplicationListener
 		images.dispose();
 		ui.dispose();
 		batch.dispose();
+
+		texLightGray.dispose();
+		texDarkGreen.dispose();
+		texDarkGray.dispose();
+		texRed.dispose();
 	}
 
 	@Override
@@ -209,7 +232,9 @@ public class BlueIrisViewer implements ApplicationListener
 		@Override
 		public boolean touchDown(int screenX, int screenY, int pointer, int button)
 		{
-			if (ui.stage.touchDown(screenX, screenY, pointer, button))
+			if (ui.stage.touchDown(screenX, screenY, pointer, button)
+					|| (images != null && images.instantReplayManager != null && images.instantReplayManager.touchDown(
+							screenX, screenY, pointer, button)))
 				return true;
 			isDragging = true;
 			if (pointer == 0)
@@ -232,7 +257,8 @@ public class BlueIrisViewer implements ApplicationListener
 		@Override
 		public boolean touchUp(int screenX, int screenY, int pointer, int button)
 		{
-			isDragging = false;
+			if (images != null && images.instantReplayManager != null)
+				images.instantReplayManager.touchUp(screenX, screenY, pointer, button);
 			if (ui.stage.touchUp(screenX, screenY, pointer, button))
 				return true;
 
@@ -255,7 +281,9 @@ public class BlueIrisViewer implements ApplicationListener
 		@Override
 		public boolean touchDragged(int screenX, int screenY, int pointer)
 		{
-			if (ui.stage.touchDragged(screenX, screenY, pointer))
+			if (ui.stage.touchDragged(screenX, screenY, pointer)
+					|| (images != null && images.instantReplayManager != null && images.instantReplayManager
+							.touchDragged(screenX, screenY, pointer)))
 				return true;
 			long timeNow = Utilities.getTimeInMs();
 			if (pointer == 0 && windowHelper != null && timeNow > nextMove && isDragging)
@@ -281,7 +309,9 @@ public class BlueIrisViewer implements ApplicationListener
 		@Override
 		public boolean mouseMoved(int screenX, int screenY)
 		{
-			return ui.stage.mouseMoved(screenX, screenY);
+			return ui.stage.mouseMoved(screenX, screenY)
+					|| (images != null && images.instantReplayManager != null && images.instantReplayManager
+							.mouseMoved(screenX, screenY));
 		}
 
 		@Override

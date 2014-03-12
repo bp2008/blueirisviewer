@@ -18,6 +18,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Calendar;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
@@ -141,6 +142,7 @@ public class Utilities
 					read = in.read(buf);
 				}
 				HandleSetCookie(con.getHeaderField("Set-Cookie"));
+				bytesTotal.addAndGet(baout.size());
 				return baout.toByteArray();
 			}
 			catch (Exception ex)
@@ -510,5 +512,19 @@ public class Utilities
 		MessageDigest md = MessageDigest.getInstance("MD5");
 		byte[] thedigest = md.digest(message);
 		return thedigest;
+	}
+
+	static AtomicLong bytesTotal = new AtomicLong(0);
+	static AtomicLong bytesLast3Seconds = new AtomicLong(0);
+
+	public static void tick3Seconds()
+	{
+		bytesLast3Seconds.set(bytesTotal.get());
+		bytesTotal.set(0);
+	}
+
+	public static long getCurrentBytesPer3Seconds()
+	{
+		return bytesLast3Seconds.get();
 	}
 }

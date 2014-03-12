@@ -1,5 +1,6 @@
 package org.brian.blueirisviewer.images;
 
+import java.io.IOException;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -8,10 +9,12 @@ import java.util.regex.Pattern;
 
 import org.brian.blueirisviewer.BlueIrisViewer;
 import org.brian.blueirisviewer.GameTime;
+import org.brian.blueirisviewer.instantreplay.InstantReplayManager;
 import org.brian.blueirisviewer.ui.ServerSetupWnd;
 import org.brian.blueirisviewer.util.Encryption;
 import org.brian.blueirisviewer.util.IntPoint;
 import org.brian.blueirisviewer.util.IntRunnable;
+import org.brian.blueirisviewer.util.Logger;
 import org.brian.blueirisviewer.util.Utilities;
 import org.brian.blueirisviewer.util.string;
 
@@ -23,13 +26,13 @@ import com.badlogic.gdx.math.Rectangle;
 
 public class Images
 {
-	Vector<String> cameraNames = new Vector<String>();
-	Vector<IntPoint> cameraResolutions = new Vector<IntPoint>();
-	Vector<String> imageURLs = new Vector<String>();
-	Vector<Integer> sleepDelays = new Vector<Integer>();
-	Vector<Integer> rotateDegrees = new Vector<Integer>();
+	public Vector<String> cameraNames = new Vector<String>();
+	public Vector<IntPoint> cameraResolutions = new Vector<IntPoint>();
+	public Vector<String> imageURLs = new Vector<String>();
+	public Vector<Integer> sleepDelays = new Vector<Integer>();
+	public Vector<Integer> rotateDegrees = new Vector<Integer>();
 
-	ConcurrentLinkedQueue<DownloadedTexture> downloadedTextures = new ConcurrentLinkedQueue<DownloadedTexture>();
+	public ConcurrentLinkedQueue<DownloadedTexture> downloadedTextures = new ConcurrentLinkedQueue<DownloadedTexture>();
 	Vector<Thread> downloaderThreads = new Vector<Thread>();
 	Vector<Texture> textures = new Vector<Texture>();
 
@@ -50,6 +53,8 @@ public class Images
 	long connectedAtTime = 0;
 
 	AtomicInteger fullScreenedImageId = new AtomicInteger(-1);
+
+	public InstantReplayManager instantReplayManager;
 
 	public int getRowCount()
 	{
@@ -92,6 +97,10 @@ public class Images
 	}
 
 	Pattern cameraPattern = Pattern.compile("<option\\W+value=\"([^\"]*?)\">([^<]*?)</option>");
+
+	public Images()
+	{
+	}
 
 	public void Initialize()
 	{
@@ -138,6 +147,7 @@ public class Images
 							if (string.IsNullOrEmpty(page))
 								return; // Page is empty!
 						}
+						// No going back beyond this point.
 
 						// Assume page is jpegpull as requested.
 
@@ -183,6 +193,10 @@ public class Images
 							aImageHeight.set((int) Math.ceil(imageHeight));
 						}
 
+						instantReplayManager = new InstantReplayManager(imageURLs.size(),
+								BlueIrisViewer.bivSettings.instantReplayEnabled,
+								BlueIrisViewer.bivSettings.instantReplayHistoryLengthMinutes);
+
 						// Populate texture list
 						for (int i = 0; i < imageURLs.size(); i++)
 							textures.add(null);
@@ -194,40 +208,35 @@ public class Images
 								public void run()
 								{
 									String myUrl = imageURLs.get(myInt);
-									DownloadedTexture dt = null;
 									while (!abortThreads)
 									{
 										int sleepFor = BlueIrisViewer.bivSettings.imageRefreshDelayMS;// sleepDelays.get(myInt).intValue();
 										// System.out.println("Downloading " + myUrl + Utilities.getTimeInMs());
 
-										if (!downloadedTextures.contains(dt))
+										if (!instantReplayManager.IsProcessingLiveCamera(myInt))
 										{
 											int full = fullScreenedImageId.get();
 
-											Pixmap pm = Images.Get(myUrl + GetImageModeQueryString(myInt, full));
+											byte[] img = Utilities.getViaHttpConnection(myUrl
+													+ GetImageModeQueryString(myInt, full), null);
 
 											if (abortThreads)
-											{
-												if (pm != null)
-													pm.dispose();
 												break;
-											}
-
-											if (pm != null)
+											else if (img.length > 0)
+												instantReplayManager.LiveImageReceived(myInt, img);
+											if (!BlueIrisViewer.bivSettings.instantReplayEnabled
+													|| BlueIrisViewer.images.instantReplayManager
+															.getCurrentTimeOffset() == 0)
 											{
-												dt = new DownloadedTexture(pm, myInt);
-												downloadedTextures.add(dt);
+												if (full == myInt)
+													sleepFor = 0;
+												else if (full > -1)
+													sleepFor += 1000;
 											}
-
-											if (full == myInt)
-												sleepFor = 0;
-											else if (full > -1)
-												sleepFor += 1000;
 										}
 										else if (sleepFor < 25)
-											sleepFor = 25; // If we get here, the downloader is getting ahead of the
-															// render
-															// thread.
+											sleepFor = 25; // If we get here, the downloader is getting
+															// ahead of the render thread.
 
 										if (sleepFor > 0)
 										{
@@ -241,95 +250,104 @@ public class Images
 										}
 									}
 								}
-
-								private String GetImageModeQueryString(int cameraIndex, int fullScreenCameraIndex)
-								{
-									String queryStr = "";
-									if (BlueIrisViewer.bivSettings.imageResolutionMode == 0)
-									{
-										// Highest efficiency
-										IntPoint nativeResolution = cameraResolutions.get(cameraIndex);
-										int newWidth;
-										if (fullScreenCameraIndex == cameraIndex)
-											newWidth = ReduceImageDimensionsAndReturnNewWidth(nativeResolution.x,
-													nativeResolution.y, screenWidth.get(), screenHeight.get());
-										else
-										{
-											newWidth = ReduceImageDimensionsAndReturnNewWidth(nativeResolution.x,
-													nativeResolution.y, aImageWidth.get(), aImageHeight.get());
-										}
-										queryStr += "?w=" + newWidth;
-									}
-									else if (BlueIrisViewer.bivSettings.imageResolutionMode == 1)
-									{
-										// Balanced
-										IntPoint nativeResolution = cameraResolutions.get(cameraIndex);
-										int newWidth;
-										if (fullScreenCameraIndex == cameraIndex)
-											newWidth = ReduceImageDimensionsAndReturnNewWidth(nativeResolution.x,
-													nativeResolution.y, screenWidth.get(), screenHeight.get());
-										else
-										{
-											newWidth = ReduceImageDimensionsAndReturnNewWidth(nativeResolution.x,
-													nativeResolution.y,
-													Math.min(aImageWidth.get() * 2, screenWidth.get()),
-													Math.min(aImageHeight.get() * 2, screenHeight.get()));
-										}
-										queryStr += "?w=" + newWidth;
-									}
-									else if (BlueIrisViewer.bivSettings.imageResolutionMode == 2)
-									{
-										// High Quality
-										IntPoint nativeResolution = cameraResolutions.get(cameraIndex);
-										int newWidth;
-										if (fullScreenCameraIndex == cameraIndex)
-											newWidth = ReduceImageDimensionsAndReturnNewWidth(nativeResolution.x,
-													nativeResolution.y, screenWidth.get() * 2, screenHeight.get() * 2);
-										else
-										{
-											newWidth = ReduceImageDimensionsAndReturnNewWidth(nativeResolution.x,
-													nativeResolution.y,
-													Math.min(aImageWidth.get() * 2, screenWidth.get() * 2),
-													Math.min(aImageHeight.get() * 2, screenHeight.get() * 2));
-										}
-										queryStr += "?w=" + newWidth;
-									}
-									else if (BlueIrisViewer.bivSettings.imageResolutionMode == 3)
-									{
-										// Maximum Quality
-										IntPoint nativeResolution = cameraResolutions.get(cameraIndex);
-										int newWidth = ReduceImageDimensionsAndReturnNewWidth(nativeResolution.x,
-												nativeResolution.y, screenWidth.get() * 2, screenHeight.get() * 2);
-										queryStr += "?w=" + newWidth;
-									}
-									else
-									{
-										// No Optimizations
-									}
-
-									if (BlueIrisViewer.bivSettings.overrideJpegQuality)
-									{
-										if (string.IsNullOrEmpty(queryStr))
-											queryStr += "?";
-										else
-											queryStr += "&";
-										queryStr += "q=" + BlueIrisViewer.bivSettings.jpegQuality;
-									}
-									return queryStr;
-								}
 							}));
 
 						// Start downloader threads
 						for (int i = 0; i < downloaderThreads.size(); i++)
+						{
+							downloaderThreads.get(i).setName("ImgDld" + i);
 							downloaderThreads.get(i).start();
+						}
 
 						isInitialized = true;
+					}
+					catch (IOException e)
+					{
+						Logger.debug(e, Images.class);
+						isInitializing = false;
 					}
 					finally
 					{
 						isInitializing = false;
 					}
 				}
+			}
+
+			private String GetImageModeQueryString(int cameraIndex, int fullScreenCameraIndex)
+			{
+				boolean allowContextBasedSizing = !BlueIrisViewer.bivSettings.instantReplayEnabled
+						|| BlueIrisViewer.images.instantReplayManager.getCurrentTimeOffset() == 0;
+
+				String queryStr = "";
+				if (BlueIrisViewer.bivSettings.imageResolutionMode == 0)
+				{
+					// Highest efficiency
+					IntPoint nativeResolution = cameraResolutions.get(cameraIndex);
+					int newWidth;
+					if (fullScreenCameraIndex == cameraIndex && allowContextBasedSizing)
+						newWidth = ReduceImageDimensionsAndReturnNewWidth(nativeResolution.x, nativeResolution.y,
+								screenWidth.get(), screenHeight.get());
+					else
+					{
+						newWidth = ReduceImageDimensionsAndReturnNewWidth(nativeResolution.x, nativeResolution.y,
+								aImageWidth.get(), aImageHeight.get());
+					}
+					queryStr += "?w=" + newWidth;
+				}
+				else if (BlueIrisViewer.bivSettings.imageResolutionMode == 1)
+				{
+					// Balanced
+					IntPoint nativeResolution = cameraResolutions.get(cameraIndex);
+					int newWidth;
+					if (fullScreenCameraIndex == cameraIndex && allowContextBasedSizing)
+						newWidth = ReduceImageDimensionsAndReturnNewWidth(nativeResolution.x, nativeResolution.y,
+								screenWidth.get(), screenHeight.get());
+					else
+					{
+						newWidth = ReduceImageDimensionsAndReturnNewWidth(nativeResolution.x, nativeResolution.y,
+								Math.min(aImageWidth.get() * 2, screenWidth.get()),
+								Math.min(aImageHeight.get() * 2, screenHeight.get()));
+					}
+					queryStr += "?w=" + newWidth;
+				}
+				else if (BlueIrisViewer.bivSettings.imageResolutionMode == 2)
+				{
+					// High Quality
+					IntPoint nativeResolution = cameraResolutions.get(cameraIndex);
+					int newWidth;
+					if (fullScreenCameraIndex == cameraIndex && allowContextBasedSizing)
+						newWidth = ReduceImageDimensionsAndReturnNewWidth(nativeResolution.x, nativeResolution.y,
+								screenWidth.get() * 2, screenHeight.get() * 2);
+					else
+					{
+						newWidth = ReduceImageDimensionsAndReturnNewWidth(nativeResolution.x, nativeResolution.y,
+								Math.min(aImageWidth.get() * 2, screenWidth.get() * 2),
+								Math.min(aImageHeight.get() * 2, screenHeight.get() * 2));
+					}
+					queryStr += "?w=" + newWidth;
+				}
+				else if (BlueIrisViewer.bivSettings.imageResolutionMode == 3)
+				{
+					// Maximum Quality
+					IntPoint nativeResolution = cameraResolutions.get(cameraIndex);
+					int newWidth = ReduceImageDimensionsAndReturnNewWidth(nativeResolution.x, nativeResolution.y,
+							screenWidth.get() * 2, screenHeight.get() * 2);
+					queryStr += "?w=" + newWidth;
+				}
+				else
+				{
+					// No Optimizations
+				}
+
+				if (BlueIrisViewer.bivSettings.overrideJpegQuality)
+				{
+					if (string.IsNullOrEmpty(queryStr))
+						queryStr += "?";
+					else
+						queryStr += "&";
+					queryStr += "q=" + BlueIrisViewer.bivSettings.jpegQuality;
+				}
+				return queryStr;
 			}
 
 			private void HandleLogin(String processedServerURL)
@@ -398,13 +416,20 @@ public class Images
 
 	public void dispose()
 	{
+		if (instantReplayManager != null)
+			instantReplayManager.dispose();
 		abortThreads = true;
-		downloadedTextures.clear();
 		for (int i = 0; i < textures.size(); i++)
 		{
 			Texture texture = textures.get(i);
 			if (texture != null)
 				texture.dispose();
+		}
+		DownloadedTexture dt = downloadedTextures.poll();
+		while (dt != null)
+		{
+			dt.data.dispose();
+			dt = downloadedTextures.poll();
 		}
 	}
 
@@ -520,6 +545,8 @@ public class Images
 						BlueIrisViewer.fScreenHeight - 35);
 			}
 		}
+		if (instantReplayManager != null)
+			instantReplayManager.render(batch);
 	}
 
 	private int ReduceImageDimensionsAndReturnNewWidth(int originalWidth, int originalHeight, int destinationWidth,

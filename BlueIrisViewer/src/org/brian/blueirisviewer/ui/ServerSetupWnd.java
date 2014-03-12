@@ -89,6 +89,8 @@ public class ServerSetupWnd extends UIElement
 			@Override
 			public void changed(ChangeEvent event, Actor actor)
 			{
+				if (BlueIrisViewer.images != null)
+					BlueIrisViewer.images.dispose();
 				BlueIrisViewer.images = new Images();
 				BlueIrisViewer.images.Initialize();
 			}
