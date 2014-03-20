@@ -1,11 +1,14 @@
 package org.brian.blueirisviewer.ui;
 
 import org.brian.blueirisviewer.BlueIrisViewer;
+import org.brian.blueirisviewer.images.Images;
 import org.brian.blueirisviewer.util.Utilities;
 
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.ui.CheckBox;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.badlogic.gdx.scenes.scene2d.ui.List;
+import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.SelectBox;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
@@ -17,6 +20,9 @@ import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 
 public class CameraLayoutWnd extends UIElement
 {
+	Object[] AllCameras = null;
+	List listAllCams;
+
 	public CameraLayoutWnd(Skin skin)
 	{
 		super(skin);
@@ -143,6 +149,87 @@ public class CameraLayoutWnd extends UIElement
 		table.add().height(10);
 		table.row();
 
+		table.add(new Label("All Cameras", skin)).align(Align.center);
+		table.add(new Label("Hidden Cameras", skin)).align(Align.center);
+		table.row();
+
+		listAllCams = new List(new Object[0], skin);
+		ScrollPane spListAllCams = new ScrollPane(listAllCams, skin);
+		spListAllCams.setFadeScrollBars(false);
+		spListAllCams.setScrollingDisabled(true, false);
+
+		table.add(spListAllCams).maxHeight(200).align(Align.center);
+
+		final List listHiddenCams = new List(BlueIrisViewer.bivSettings.getHiddenCamsObjectList(), skin);
+		ScrollPane spListHiddenCams = new ScrollPane(listHiddenCams, skin);
+		spListHiddenCams.setFadeScrollBars(false);
+		spListHiddenCams.setScrollingDisabled(true, false);
+
+		table.add(spListHiddenCams).maxHeight(200).align(Align.center);
+		table.row();
+
+		table.add().height(7);
+		table.row();
+
+		final TextButton btnHideSelected = new TextButton("Hide Selected", skin);
+		btnHideSelected.addListener(new ChangeListener()
+		{
+			@Override
+			public void changed(ChangeEvent event, Actor actor)
+			{
+				String selected = listAllCams.getSelection();
+				if (selected != null && !BlueIrisViewer.bivSettings.hiddenCams.contains(selected))
+				{
+					BlueIrisViewer.bivSettings.hiddenCams.add(selected);
+					BlueIrisViewer.bivSettings.Save();
+					listHiddenCams.setItems(BlueIrisViewer.bivSettings.getHiddenCamsObjectList());
+				}
+			}
+		});
+
+		table.add(btnHideSelected).align(Align.center);
+
+		final TextButton btnShowSelected = new TextButton("Show Selected", skin);
+		btnShowSelected.addListener(new ChangeListener()
+		{
+			@Override
+			public void changed(ChangeEvent event, Actor actor)
+			{
+				String selected = listHiddenCams.getSelection();
+				if (selected != null)
+				{
+					BlueIrisViewer.bivSettings.hiddenCams.remove(selected);
+					BlueIrisViewer.bivSettings.Save();
+					listHiddenCams.setItems(BlueIrisViewer.bivSettings.getHiddenCamsObjectList());
+				}
+			}
+		});
+
+		table.add(btnShowSelected).align(Align.center);
+		table.row();
+
+		table.add().height(10);
+		table.row();
+
+		final TextButton btnApplyChanges = new TextButton("Restart Imaging Engine to Apply Changes", skin);
+		btnApplyChanges.addListener(new ChangeListener()
+		{
+			@Override
+			public void changed(ChangeEvent event, Actor actor)
+			{
+				if (BlueIrisViewer.images != null)
+					BlueIrisViewer.images.dispose();
+				BlueIrisViewer.images = new Images();
+				BlueIrisViewer.images.Initialize();
+			}
+		});
+
+		table.add(btnApplyChanges).colspan(2).align(Align.center);
+		table.row();
+
+		table.add().height(10);
+		table.row();
+
 		final TextButton btnClose = new TextButton("Close", skin);
 		btnClose.addListener(new ChangeListener()
 		{
@@ -160,6 +247,12 @@ public class CameraLayoutWnd extends UIElement
 	@Override
 	public void onUpdate(final Window window, final Table table)
 	{
+		if (AllCameras == null && BlueIrisViewer.images != null)
+		{
+			AllCameras = BlueIrisViewer.images.GetCameraNamesObjectArray();
+			if (AllCameras != null)
+				listAllCams.setItems(AllCameras);
+		}
 	}
 
 	@Override

@@ -39,7 +39,7 @@ public class AboutWnd extends UIElement
 		table.add(scrollPane);
 		table.row();
 
-		scrollTable.add("BlueIrisView Version 2.2");
+		scrollTable.add("BlueIrisView Version 2.3");
 		scrollTable.row();
 
 		scrollTable.add().height(10);

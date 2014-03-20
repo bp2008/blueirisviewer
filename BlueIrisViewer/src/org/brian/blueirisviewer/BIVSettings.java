@@ -1,5 +1,7 @@
 package org.brian.blueirisviewer;
 
+import java.util.ArrayList;
+
 import org.brian.blueirisviewer.util.SerializableObjectBase;
 
 public class BIVSettings extends SerializableObjectBase
@@ -26,4 +28,13 @@ public class BIVSettings extends SerializableObjectBase
 	public int jpegQuality = 60;
 	public boolean instantReplayEnabled = false;
 	public int instantReplayHistoryLengthMinutes = 5;
+	public ArrayList<String> hiddenCams = new ArrayList<String>();
+	
+	public Object[] getHiddenCamsObjectList()
+	{
+		Object[] objs = new Object[hiddenCams.size()];
+		for(int i = 0; i < objs.length; i++)
+			objs[i] = hiddenCams.get(i);
+		return objs;
+	}
 }

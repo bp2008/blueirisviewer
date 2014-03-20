@@ -151,7 +151,7 @@ public class Encryption
 		try
 		{
 			KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
-			SecureRandom secureRandom = SecureRandom.getInstance("SHA1PRNG", "Crypto");
+			SecureRandom secureRandom = SecureRandom.getInstance("SHA1PRNG");
 			secureRandom.setSeed(seed);
 			keyGenerator.init(128, secureRandom); // 128 is the safest one to
 													// use for compatibility?

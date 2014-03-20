@@ -26,6 +26,7 @@ import com.badlogic.gdx.math.Rectangle;
 
 public class Images
 {
+	public Vector<String> allCameraNames = new Vector<String>();
 	public Vector<String> cameraNames = new Vector<String>();
 	public Vector<IntPoint> cameraResolutions = new Vector<IntPoint>();
 	public Vector<String> imageURLs = new Vector<String>();
@@ -154,29 +155,36 @@ public class Images
 						// Precalculate what we can about where to draw images
 						synchronized (BlueIrisViewer.getResizeLock())
 						{
-							Matcher m = cameraPattern.matcher(page);
-							while (m.find())
+							synchronized (allCameraNames)
 							{
-								String data = m.group(1);
-								String[] parts = data.split(";");
-								if (parts.length > 3)
+								Matcher m = cameraPattern.matcher(page);
+								while (m.find())
 								{
-									int width = Utilities.ParseInt(parts[1], 2500);
-									int height = Utilities.ParseInt(parts[2], 1000);
-									String[] urlParts = parts[3].split("/");
-									if (urlParts.length > 0)
+									String data = m.group(1);
+									String[] parts = data.split(";");
+									if (parts.length > 3)
 									{
-										String name = urlParts[urlParts.length - 1];
-										int delay = (width * height) / 10000; // Note: This delay is not used
-										if (delay < 250)
-											delay = 250;
-										if (!m.group(2).startsWith("+") && !name.equals("index"))
+										int width = Utilities.ParseInt(parts[1], 2500);
+										int height = Utilities.ParseInt(parts[2], 1000);
+										String[] urlParts = parts[3].split("/");
+										if (urlParts.length > 0)
 										{
-											cameraNames.add(name);
-											cameraResolutions.add(new IntPoint(width, height));
-											imageURLs.add(processedServerURL + "image/" + name);
-											sleepDelays.add(delay);
-											rotateDegrees.add(0);
+											String name = urlParts[urlParts.length - 1];
+											int delay = (width * height) / 10000; // Note: This delay is not used
+											if (delay < 250)
+												delay = 250;
+											if (!m.group(2).startsWith("+") && !name.equals("index"))
+											{
+												allCameraNames.add(name);
+												if (!SettingsSayToHideCamera(name))
+												{
+													cameraNames.add(name);
+													cameraResolutions.add(new IntPoint(width, height));
+													imageURLs.add(processedServerURL + "image/" + name);
+													sleepDelays.add(delay);
+													rotateDegrees.add(0);
+												}
+											}
 										}
 									}
 								}
@@ -273,6 +281,11 @@ public class Images
 				}
 			}
 
+			private boolean SettingsSayToHideCamera(String name)
+			{
+				return BlueIrisViewer.bivSettings.hiddenCams.contains(name);
+			}
+
 			private String GetImageModeQueryString(int cameraIndex, int fullScreenCameraIndex)
 			{
 				boolean allowContextBasedSizing = !BlueIrisViewer.bivSettings.instantReplayEnabled
@@ -352,10 +365,16 @@ public class Images
 
 			private void HandleLogin(String processedServerURL)
 			{
+				String pwDecrypted = Encryption.Decrypt(BlueIrisViewer.bivSettings.password);
+				if (pwDecrypted.equals(BlueIrisViewer.bivSettings.password))
+				{
+					BlueIrisViewer.bivSettings.password = Encryption.Encrypt(pwDecrypted);
+					BlueIrisViewer.bivSettings.Save();
+				}
 				Utilities.getStringViaHttpConnection(processedServerURL
 						+ "?page=jpegpull.htm&login="
 						+ Utilities.Hex_MD5(BlueIrisViewer.bivSettings.username + ":" + Utilities.sessionCookie + ":"
-								+ Encryption.Decrypt(BlueIrisViewer.bivSettings.password)));
+								+ pwDecrypted));
 			}
 
 			private String ProcessURL(String serverURL)
@@ -653,5 +672,18 @@ public class Images
 	public void GridSettingsChanged()
 	{
 		resize(BlueIrisViewer.iScreenWidth, BlueIrisViewer.iScreenHeight);
+	}
+
+	public Object[] GetCameraNamesObjectArray()
+	{
+		synchronized (allCameraNames)
+		{
+			if (this.allCameraNames.size() == 0)
+				return null;
+			Object[] cameraNamesObjects = new Object[this.allCameraNames.size()];
+			for (int i = 0; i < this.allCameraNames.size(); i++)
+				cameraNamesObjects[i] = allCameraNames.get(i);
+			return cameraNamesObjects;
+		}
 	}
 }
