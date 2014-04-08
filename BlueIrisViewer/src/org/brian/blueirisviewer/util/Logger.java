@@ -13,7 +13,7 @@ public class Logger
 	public static final boolean logDebug = logStuff;
 	public static final boolean logOhCrap = logStuff;
 	private static String newline = System.getProperty("line.separator");
-	private static final String logFile = System.getProperty("BlueIrisViewer_Errors.txt");
+	private static final String logFile = "BlueIrisViewer_Errors.txt";
 
 	public static void ohCrap(Exception ex, Object sender)
 	{
@@ -51,7 +51,7 @@ public class Logger
 		if (!logOhCrap)
 			return;
 		StringBuilder sb = new StringBuilder();
-		sb.append(" *** Oh No! *** ").append(newline);
+		sb.append(Utilities.getTimestamp()).append(" *** Oh No! *** ").append(newline);
 		if (string.IsNullOrEmpty(message))
 			message = "An exception has occurred";
 		sb.append(message);
@@ -98,7 +98,7 @@ public class Logger
 		
 		StringBuilder sb = new StringBuilder();
 		
-		sb.append("\"Oh No!\" message from ").append(sender.getClass().toString()).append(":").append(newline);
+		sb.append(Utilities.getTimestamp()).append(" \"Oh No!\" message from ").append(sender.getClass().toString()).append(":").append(newline);
 		sb.append(message).append(newline);
 
 		System.err.print(sb.toString());
@@ -140,7 +140,7 @@ public class Logger
 
 		StringBuilder sb = new StringBuilder();
 		
-		sb.append("(").append(cl.toString()).append("): ").append(message).append(newline);
+		sb.append(Utilities.getTimestamp()).append(" (").append(cl.toString()).append("): ").append(message).append(newline);
 
 		System.err.print(sb.toString());
 		
@@ -183,7 +183,7 @@ public class Logger
 
 		StringBuilder sb = new StringBuilder();
 		
-		sb.append(message).append(":").append(newline);
+		sb.append(Utilities.getTimestamp()).append(" ").append(message).append(":").append(newline);
 		
 		if (ex == null)
 			sb.append("Exception object was null").append(newline);
@@ -228,7 +228,7 @@ public class Logger
 		StringBuilder sb = new StringBuilder();
 		
 		// System.err.print("Debug message from ");
-		sb.append("(");
+		sb.append(Utilities.getTimestamp()).append(" (");
 		if (sender != null)
 			sb.append(sender.getClass().toString());
 		else

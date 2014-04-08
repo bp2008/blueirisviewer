@@ -3,6 +3,7 @@ package org.brian.blueirisviewer;
 import java.io.File;
 import java.io.IOException;
 
+import org.brian.blueirisviewer.util.Logger;
 import org.brian.blueirisviewer.util.SerializableObjectBase;
 
 import com.badlogic.gdx.LifecycleListener;
@@ -82,7 +83,7 @@ public class Main
 				}
 				catch (IOException e)
 				{
-					e.printStackTrace();
+					Logger.debug(e, this);
 				}
 			}
 		}

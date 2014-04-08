@@ -1,6 +1,7 @@
 package org.brian.blueirisviewer.ui;
 
 import org.brian.blueirisviewer.BlueIrisViewer;
+import org.brian.blueirisviewer.util.Logger;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Version;
@@ -16,7 +17,6 @@ import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.ui.Window;
 import com.badlogic.gdx.scenes.scene2d.utils.Align;
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
-import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener.ChangeEvent;
 
 public class AboutWnd extends UIElement
 {
@@ -89,8 +89,12 @@ public class AboutWnd extends UIElement
 			@Override
 			public void changed(ChangeEvent event, Actor actor)
 			{
+				if(BlueIrisViewer.bivSettings.logErrorsToDisk)
+					Logger.debug("Disabling File Logging", AboutWnd.this);
 				BlueIrisViewer.bivSettings.logErrorsToDisk = cbSaveErrorLogToDisk.isChecked();
 				BlueIrisViewer.bivSettings.Save();
+				if(BlueIrisViewer.bivSettings.logErrorsToDisk)
+					Logger.debug("Enabled File Logging", AboutWnd.this);
 			}
 		});
 		table.add(cbSaveErrorLogToDisk).align(Align.left);

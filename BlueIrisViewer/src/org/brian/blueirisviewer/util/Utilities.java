@@ -17,7 +17,9 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -526,5 +528,13 @@ public class Utilities
 	public static long getCurrentBytesPer3Seconds()
 	{
 		return bytesLast3Seconds.get();
+	}
+
+	public static String getTimestamp()
+	{
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+		Date dt = new Date();
+		String S = sdf.format(dt); // formats to 09/23/2009 13:53:28.238
+		return S;
 	}
 }

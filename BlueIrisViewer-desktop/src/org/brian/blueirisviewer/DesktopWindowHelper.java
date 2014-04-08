@@ -2,6 +2,7 @@ package org.brian.blueirisviewer;
 
 import org.brian.blueirisviewer.util.IntPoint;
 import org.brian.blueirisviewer.util.IntRectangle;
+import org.brian.blueirisviewer.util.Logger;
 import org.brian.blueirisviewer.util.WindowHelper;
 import org.lwjgl.LWJGLException;
 import org.lwjgl.opengl.DisplayMode;
@@ -25,7 +26,7 @@ public class DesktopWindowHelper implements WindowHelper
 		}
 		catch (LWJGLException e)
 		{
-			e.printStackTrace();
+			Logger.debug(e, this);
 		}
 	}
 
@@ -44,7 +45,7 @@ public class DesktopWindowHelper implements WindowHelper
 		}
 		catch (LWJGLException e)
 		{
-			e.printStackTrace();
+			Logger.debug(e, this);
 		}
 	}
 
