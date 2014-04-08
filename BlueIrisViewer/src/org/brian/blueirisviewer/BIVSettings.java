@@ -29,6 +29,7 @@ public class BIVSettings extends SerializableObjectBase
 	public boolean instantReplayEnabled = false;
 	public int instantReplayHistoryLengthMinutes = 5;
 	public ArrayList<String> hiddenCams = new ArrayList<String>();
+	public boolean logErrorsToDisk = true;
 	
 	public Object[] getHiddenCamsObjectList()
 	{

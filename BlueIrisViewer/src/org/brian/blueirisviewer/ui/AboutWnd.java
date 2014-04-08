@@ -1,9 +1,12 @@
 package org.brian.blueirisviewer.ui;
 
+import org.brian.blueirisviewer.BlueIrisViewer;
+
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Version;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.scenes.scene2d.Actor;
+import com.badlogic.gdx.scenes.scene2d.ui.CheckBox;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
@@ -13,6 +16,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.ui.Window;
 import com.badlogic.gdx.scenes.scene2d.utils.Align;
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
+import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener.ChangeEvent;
 
 public class AboutWnd extends UIElement
 {
@@ -36,10 +40,10 @@ public class AboutWnd extends UIElement
 		ScrollPane scrollPane = new ScrollPane(scrollTable, skin);
 		scrollPane.setFadeScrollBars(false);
 		scrollPane.setScrollingDisabled(true, false);
-		table.add(scrollPane);
+		table.add(scrollPane).colspan(2).align(Align.center);
 		table.row();
 
-		scrollTable.add("BlueIrisView Version 2.3");
+		scrollTable.add("BlueIrisView Version 2.3.1");
 		scrollTable.row();
 
 		scrollTable.add().height(10);
@@ -77,7 +81,20 @@ public class AboutWnd extends UIElement
 
 		scrollTable.add().height(10);
 		scrollTable.row();
-
+		
+		final CheckBox cbSaveErrorLogToDisk = new CheckBox("  Log Errors To Disk", skin);
+		cbSaveErrorLogToDisk.setChecked(BlueIrisViewer.bivSettings.logErrorsToDisk);
+		cbSaveErrorLogToDisk.addListener(new ChangeListener()
+		{
+			@Override
+			public void changed(ChangeEvent event, Actor actor)
+			{
+				BlueIrisViewer.bivSettings.logErrorsToDisk = cbSaveErrorLogToDisk.isChecked();
+				BlueIrisViewer.bivSettings.Save();
+			}
+		});
+		table.add(cbSaveErrorLogToDisk).align(Align.left);
+		
 		final TextButton btnClose = new TextButton("Close", skin);
 		btnClose.addListener(new ChangeListener()
 		{
@@ -87,7 +104,7 @@ public class AboutWnd extends UIElement
 				hide();
 			}
 		});
-		table.add(btnClose).colspan(2).align(Align.right);
+		table.add(btnClose).align(Align.right);
 		table.row();
 	}
 

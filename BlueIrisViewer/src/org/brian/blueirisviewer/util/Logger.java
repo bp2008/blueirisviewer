@@ -1,5 +1,10 @@
 package org.brian.blueirisviewer.util;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
+
+import org.brian.blueirisviewer.BlueIrisViewer;
+
 public class Logger
 {
 	private static final boolean logStuff = true;
@@ -7,6 +12,8 @@ public class Logger
 	public static final boolean logDatabaseAccess = logStuff;
 	public static final boolean logDebug = logStuff;
 	public static final boolean logOhCrap = logStuff;
+	private static String newline = System.getProperty("line.separator");
+	private static final String logFile = System.getProperty("BlueIrisViewer_Errors.txt");
 
 	public static void ohCrap(Exception ex, Object sender)
 	{
@@ -43,37 +50,70 @@ public class Logger
 	{
 		if (!logOhCrap)
 			return;
-		System.err.println(" *** Oh No! *** ");
+		StringBuilder sb = new StringBuilder();
+		sb.append(" *** Oh No! *** ").append(newline);
 		if (string.IsNullOrEmpty(message))
 			message = "An exception has occurred";
-		System.err.print(message);
-		System.err.println(":");
+		sb.append(message);
+		sb.append(":").append(newline);
 		if (ex == null)
-			System.err.println("Exception object was null");
+			sb.append("Exception object was null").append(newline);
 		else
 		{
 			String exmsg = ex.getMessage();
 			if (exmsg == null)
-				System.err.println("Exception message was null");
+				sb.append("Exception message was null").append(newline);
 			else
-				System.err.println(exmsg);
+				sb.append(exmsg).append(newline);
 		}
 		if (!string.IsNullOrEmpty(additionalInfo))
 		{
-			System.err.println("Additional Info:");
-			System.err.println(additionalInfo);
+			sb.append("Additional Info:").append(newline);
+			sb.append(additionalInfo).append(newline);
 		}
-		ex.printStackTrace();
+		
+		StringWriter errors = new StringWriter();
+		ex.printStackTrace(new PrintWriter(errors));
+		sb.append(errors.toString()).append(newline);
+
+		System.err.print(sb.toString());
+
+		if (BlueIrisViewer.bivSettings.logErrorsToDisk)
+		{
+			try
+			{
+				Utilities.WriteTextFile(logFile, sb.toString(), true);
+			}
+			catch (Exception e)
+			{
+				e.printStackTrace();
+			}
+		}
 	}
 
 	public static void ohCrap(String message, Object sender)
 	{
 		if (!logOhCrap)
 			return;
-		System.err.print("\"Oh No!\" message from ");
-		System.err.print(sender.getClass().toString());
-		System.err.println(":");
-		System.err.println(message);
+		
+		StringBuilder sb = new StringBuilder();
+		
+		sb.append("\"Oh No!\" message from ").append(sender.getClass().toString()).append(":").append(newline);
+		sb.append(message).append(newline);
+
+		System.err.print(sb.toString());
+		
+		if (BlueIrisViewer.bivSettings.logErrorsToDisk)
+		{
+			try
+			{
+				Utilities.WriteTextFile(logFile, sb.toString(), true);
+			}
+			catch (Exception e)
+			{
+				e.printStackTrace();
+			}
+		}
 	}
 
 	public static void debug(Exception ex, @SuppressWarnings("rawtypes") Class cl, String additionalInfo)
@@ -97,10 +137,24 @@ public class Logger
 	{
 		if (!logDebug)
 			return;
-		System.err.print("(");
-		System.err.print(cl.toString());
-		System.err.print("): ");
-		System.err.println(message);
+
+		StringBuilder sb = new StringBuilder();
+		
+		sb.append("(").append(cl.toString()).append("): ").append(message).append(newline);
+
+		System.err.print(sb.toString());
+		
+		if (BlueIrisViewer.bivSettings.logErrorsToDisk)
+		{
+			try
+			{
+				Utilities.WriteTextFile(logFile, sb.toString(), true);
+			}
+			catch (Exception e)
+			{
+				e.printStackTrace();
+			}
+		}
 	}
 
 	public static void debug(Exception ex, Object sender, String additionalInfo)
@@ -126,38 +180,75 @@ public class Logger
 			return;
 		if (string.IsNullOrEmpty(message))
 			message = "An exception has occurred";
-		System.err.print(message);
-		System.err.println(":");
+
+		StringBuilder sb = new StringBuilder();
+		
+		sb.append(message).append(":").append(newline);
+		
 		if (ex == null)
-			System.err.println("Exception object was null");
+			sb.append("Exception object was null").append(newline);
 		else
 		{
 			String exmsg = ex.getMessage();
 			if (exmsg == null)
-				System.err.println("Exception message was null");
+				sb.append("Exception message was null").append(newline);
 			else
-				System.err.println(exmsg);
+				sb.append(exmsg).append(newline);
 		}
 		if (!string.IsNullOrEmpty(additionalInfo))
 		{
-			System.err.println("Additional Info:");
-			System.err.println(additionalInfo);
+			sb.append("Additional Info:").append(newline);
+			sb.append(additionalInfo).append(newline);
 		}
-		ex.printStackTrace();
+		
+		StringWriter errors = new StringWriter();
+		ex.printStackTrace(new PrintWriter(errors));
+		sb.append(errors.toString()).append(newline);
+
+		System.err.print(sb.toString());
+		
+		if (BlueIrisViewer.bivSettings.logErrorsToDisk)
+		{
+			try
+			{
+				Utilities.WriteTextFile(logFile, sb.toString(), true);
+			}
+			catch (Exception e)
+			{
+				e.printStackTrace();
+			}
+		}
 	}
 
 	public static void debug(String message, Object sender)
 	{
 		if (!logDebug)
 			return;
+		
+		StringBuilder sb = new StringBuilder();
+		
 		// System.err.print("Debug message from ");
-		System.err.print("(");
+		sb.append("(");
 		if (sender != null)
-			System.err.print(sender.getClass().toString());
+			sb.append(sender.getClass().toString());
 		else
-			System.err.print("null");
-		System.err.print("): ");
+			sb.append("null");
+		sb.append("): ");
 		// System.err.println(":");
-		System.err.println(message);
+		sb.append(message).append(newline);
+		
+		System.err.print(sb.toString());
+		
+		if (BlueIrisViewer.bivSettings.logErrorsToDisk)
+		{
+			try
+			{
+				Utilities.WriteTextFile(logFile, sb.toString(), true);
+			}
+			catch (Exception e)
+			{
+				e.printStackTrace();
+			}
+		}
 	}
 }
