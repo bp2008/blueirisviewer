@@ -32,6 +32,8 @@ import javax.net.ssl.SSLSession;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
+import org.brian.blueirisviewer.BlueIrisViewer;
+
 public class Utilities
 {
 	public static String sessionCookie = null;
@@ -53,6 +55,19 @@ public class Utilities
 	 * @return
 	 */
 	public static byte[] getViaHttpConnection(String sUrl, PostData postData)
+	{
+		return getViaHttpConnection(sUrl, postData, null, null);
+	}
+	/**
+	 * Gets a byte[] of data from the specified URL using POST or GET as determined by the arguments.
+	 * 
+	 * @param sUrl
+	 *            The URL to get data from.
+	 * @param postData
+	 *            Data to POST. If null, the request will be a GET request with no payload instead.
+	 * @return
+	 */
+	private static byte[] getViaHttpConnection(String sUrl, PostData postData, String user, String pass)
 	{
 		if (sUrl == null || sUrl.equals(""))
 			return new byte[0];
@@ -125,7 +140,25 @@ public class Utilities
 			if (sCookie != null && !sCookie.equals(""))
 				con.setRequestProperty("Cookie", "session=" + sCookie);
 
-			InputStream inStream = con.getInputStream();
+			if(user != null && pass != null)
+			{
+				String encoded = Base64.encodeToString((user + ":" + pass).getBytes("UTF-8"), false);
+				con.setRequestProperty("Authorization", "Basic " + encoded);
+			}
+			
+			InputStream inStream = null;
+			try
+			{
+				inStream = con.getInputStream();
+			}
+			catch (java.io.IOException ex)
+			{
+				if (user == null && pass == null && ex.getMessage().contains("HTTP response code: 401"))
+					return getViaHttpConnection(sUrl, postData, BlueIrisViewer.bivSettings.username, Encryption
+							.Decrypt(BlueIrisViewer.bivSettings.password));
+				else
+					throw ex;
+			}
 			String enc = con.getContentEncoding();
 
 			in = new BufferedInputStream(inStream);
