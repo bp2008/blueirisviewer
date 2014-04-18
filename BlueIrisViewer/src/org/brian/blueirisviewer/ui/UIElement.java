@@ -31,13 +31,19 @@ public abstract class UIElement
 	public void show()
 	{
 		if (parent != null && !parent.hasParent())
-			UI.root.add(parent);
+		{
+			UI.root.addActor(parent);
+			onShow();
+		}
 	}
 
 	public void hide()
 	{
 		if (parent != null)
+		{
 			parent.remove();
+			onHide();
+		}
 	}
 
 	public boolean isShowing()
@@ -45,7 +51,7 @@ public abstract class UIElement
 		return parent != null && parent.hasParent();
 	}
 
-	public void onUpdate()
+	public void doUpdate()
 	{
 		if (isShowing())
 			onUpdate(window, table);
@@ -55,10 +61,22 @@ public abstract class UIElement
 	{
 		window.setModal(isModal);
 	}
+	/**
+	 * Can be overridden by an inheriting class to be notified when the UI element is shown.
+	 */
+	protected void onShow()
+	{
+	}
+	/**
+	 * Can be overridden by an inheriting class to be notified when the UI element is hidden.
+	 */
+	protected void onHide()
+	{
+	}
 
-	public abstract void onCreate(final Skin skin, final Window window, final Table table);
+	protected abstract void onCreate(final Skin skin, final Window window, final Table table);
 
 	protected abstract void onUpdate(final Window window, final Table table);
 
-	public abstract void onDestroy();
+	protected abstract void onDestroy();
 }

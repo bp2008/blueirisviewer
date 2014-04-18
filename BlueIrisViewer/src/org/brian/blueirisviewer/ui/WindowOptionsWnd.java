@@ -1,5 +1,10 @@
 package org.brian.blueirisviewer.ui;
 
+import java.awt.GraphicsDevice;
+import java.awt.GraphicsEnvironment;
+import java.awt.Rectangle;
+import java.util.ArrayList;
+
 import org.brian.blueirisviewer.BlueIrisViewer;
 import org.brian.blueirisviewer.util.IntRectangle;
 import org.brian.blueirisviewer.util.Utilities;
@@ -11,14 +16,22 @@ import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.ui.TextField;
+import com.badlogic.gdx.scenes.scene2d.ui.WidgetGroup;
 import com.badlogic.gdx.scenes.scene2d.ui.Window;
 import com.badlogic.gdx.scenes.scene2d.utils.Align;
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
+import com.esotericsoftware.tablelayout.Cell;
 
 public class WindowOptionsWnd extends UIElement
 {
 	TextField txtWindowX, txtWindowY, txtWindowW, txtWindowH;
 	IntRectangle previousPosition = BlueIrisViewer.windowHelper.GetWindowRectangle();
+	WidgetGroup monitorButtons;
+
+	@SuppressWarnings("rawtypes")
+	Cell monitorButtonsCell;
+
+	Skin defaultSkin;
 
 	public WindowOptionsWnd(Skin skin)
 	{
@@ -26,8 +39,10 @@ public class WindowOptionsWnd extends UIElement
 	}
 
 	@Override
-	public void onCreate(final Skin skin, final Window window, final Table table)
+	protected void onCreate(final Skin skin, final Window window, final Table table)
 	{
+		defaultSkin = skin;
+
 		table.columnDefaults(0).align(Align.right).padRight(10);
 		table.columnDefaults(1).align(Align.left);
 		table.pad(10, 10, 10, 10);
@@ -97,8 +112,21 @@ public class WindowOptionsWnd extends UIElement
 		table.add().height(20);
 		table.row();
 
+		if (BlueIrisViewer.bivSettings.borderless)
+		{
+			table.add("Choose a monitor to fullscreen on").colspan(4).padBottom(10).align(Align.center);
+			table.row();
+
+			monitorButtons = new WidgetGroup();
+			monitorButtonsCell = table.add(monitorButtons).colspan(4).align(Align.center).width(320).height(240);
+			table.row();
+
+			table.add().height(20);
+			table.row();
+		}
+
 		Table tbl = new Table(skin);
-		tbl.add("Manual Window Positioning Options").colspan(4).padBottom(10);
+		tbl.add("Manual Window Positioning Options").colspan(4).padBottom(10).align(Align.center);
 		tbl.row();
 
 		IntRectangle currentPosition = previousPosition = BlueIrisViewer.windowHelper.GetWindowRectangle();
@@ -176,7 +204,7 @@ public class WindowOptionsWnd extends UIElement
 	}
 
 	@Override
-	public void onUpdate(final Window window, final Table table)
+	protected void onUpdate(final Window window, final Table table)
 	{
 		IntRectangle currentPosition = BlueIrisViewer.windowHelper.GetWindowRectangle();
 		if (currentPosition.x != previousPosition.x)
@@ -191,7 +219,109 @@ public class WindowOptionsWnd extends UIElement
 	}
 
 	@Override
-	public void onDestroy()
+	protected void onDestroy()
 	{
+	}
+
+	@Override
+	protected void onShow()
+	{
+		if (BlueIrisViewer.bivSettings.borderless)
+		{
+			GraphicsEnvironment env = GraphicsEnvironment.getLocalGraphicsEnvironment();
+			GraphicsDevice[] allScreens = env.getScreenDevices();
+			Rectangle leftMost = null, rightMost = null, topMost = null, bottomMost = null;
+			ArrayList<Rectangle> screenRects = new ArrayList<Rectangle>();
+			for (int i = 0; i < allScreens.length; i++)
+			{
+				GraphicsDevice screen = allScreens[i];
+				Rectangle rect = screen.getDefaultConfiguration().getBounds();
+				if (rect.width > 0 && rect.height > 0)
+				{
+					screenRects.add(rect);
+					if (leftMost == null)
+						leftMost = rightMost = topMost = bottomMost = rect;
+					else
+					{
+						if (rect.x < leftMost.x)
+							leftMost = rect;
+						if (rect.y < topMost.y)
+							topMost = rect;
+						if (rect.x + rect.width > rightMost.x + rightMost.width)
+							rightMost = rect;
+						if (rect.y + rect.height > bottomMost.y + bottomMost.height)
+							bottomMost = rect;
+					}
+				}
+			}
+			// Calculate real desktop width and height in pixels.
+			int desktopPxWide = (rightMost.x + rightMost.width) - leftMost.x;
+			int desktopPxTall = (bottomMost.y + bottomMost.height) - topMost.y;
+
+			// Scale it down into a 320x240 box
+			int w = desktopPxWide;
+			int h = desktopPxTall;
+			int availableWidth = 320;
+			int availableHeight = 240;
+
+			if (w > availableWidth)
+			{
+				double diff = w / availableWidth;
+				w = availableWidth;
+				h = (int) (h / diff);
+			}
+			if (h > availableHeight)
+			{
+				double diff = h / availableHeight;
+				h = availableHeight;
+				w = (int) (w / diff);
+			}
+
+			// w and h now represent the width and height of the entire desktop, scaled to fit in a 320x240 box.
+			monitorButtons.clear();
+			monitorButtonsCell.height(h);
+			for (int i = 0; i < screenRects.size(); i++)
+			{
+				final Rectangle screen = screenRects.get(i);
+				TextButton btn = new TextButton(String.valueOf(i), defaultSkin);
+				// To calculate the button width, we determine what fraction of
+				// the desktop width this screen provides. Then we give the button
+				// the same fraction of the 320 pixels we have allocated for this
+				// monitor selector (w)
+				double fractionOfWholeWidth = ((double) screen.width / (double) desktopPxWide);
+				int bw = (int) (w * fractionOfWholeWidth);
+				// Do the same thing for height
+				double fractionOfWholeHeight = ((double) screen.height / (double) desktopPxTall);
+				int bh = (int) (h * fractionOfWholeHeight);
+				// To calculate the X position, we determine what fraction of
+				// the desktop is to the left of this screen. We then multiply
+				// this fraction times the "shrunken" width (w).
+				int leftfScreen = screen.x - leftMost.x;
+				double fractionOfWholeLeft = ((double) leftfScreen / (double) desktopPxWide);
+				int bx = (int) (fractionOfWholeLeft * w);
+				// Repeat for Y position
+				int bottomOfScreen = ((screen.y - topMost.y) + screen.height);
+				double fractionOfWholeTop = 1.0d - ((double) bottomOfScreen / (double) desktopPxTall);
+				int by = (int) (fractionOfWholeTop * h);
+				btn.setBounds(bx, by, bw, bh);
+
+				btn.addListener(new ChangeListener()
+				{
+					@Override
+					public void changed(ChangeEvent event, Actor actor)
+					{
+						IntRectangle i = new IntRectangle(screen.x, screen.y, screen.width, screen.height);
+						BlueIrisViewer.bivSettings.startPositionX = i.x;
+						BlueIrisViewer.bivSettings.startPositionY = i.y;
+						BlueIrisViewer.bivSettings.startSizeW = i.width;
+						BlueIrisViewer.bivSettings.startSizeH = i.height;
+						BlueIrisViewer.bivSettings.Save();
+						BlueIrisViewer.windowHelper.SetWindowRectangle(i);
+					}
+				});
+
+				monitorButtons.addActor(btn);
+			}
+		}
 	}
 }

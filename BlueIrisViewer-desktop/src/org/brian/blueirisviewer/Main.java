@@ -1,5 +1,8 @@
 package org.brian.blueirisviewer;
 
+import java.awt.GraphicsDevice;
+import java.awt.GraphicsEnvironment;
+import java.awt.Rectangle;
 import java.io.File;
 import java.io.IOException;
 
@@ -34,6 +37,34 @@ public class Main
 
 		if (bivSettings.loadStartPositionAndSizeUponAppStart)
 		{
+			// Ensure the stored position is on-screen
+			int centerX = bivSettings.startPositionX + (bivSettings.startSizeW / 2);
+			int centerY = bivSettings.startPositionY + (bivSettings.startSizeH / 2);
+			
+			GraphicsEnvironment env = GraphicsEnvironment.getLocalGraphicsEnvironment();
+			GraphicsDevice[] allScreens = env.getScreenDevices();
+			
+			boolean positionIsOnScreen = false;
+			Rectangle firstScreen = null;
+			for (int i = 0; i < allScreens.length; i++)
+			{
+				Rectangle screen = allScreens[i].getDefaultConfiguration().getBounds();
+				if(firstScreen == null)
+					firstScreen = screen;
+				if(screen.contains(centerX, centerY))
+				{
+					positionIsOnScreen = true;
+					break;
+				}
+			}
+			if(!positionIsOnScreen && firstScreen != null)
+			{
+				bivSettings.startPositionX = firstScreen.x + 20;
+				bivSettings.startPositionY = firstScreen.y + 20;
+				bivSettings.startSizeW = firstScreen.width - 100;
+				bivSettings.startSizeH = firstScreen.height - 150;
+			}
+			
 			cfg.x = bivSettings.startPositionX;
 			cfg.y = bivSettings.startPositionY;
 			cfg.width = bivSettings.startSizeW;

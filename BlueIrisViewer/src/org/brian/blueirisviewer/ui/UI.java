@@ -9,9 +9,9 @@ import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-import com.badlogic.gdx.scenes.scene2d.ui.Stack;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
+import com.badlogic.gdx.scenes.scene2d.ui.WidgetGroup;
 import com.badlogic.gdx.scenes.scene2d.ui.Window;
 import com.badlogic.gdx.scenes.scene2d.utils.Align;
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
@@ -21,7 +21,7 @@ public class UI
 	private static Skin skin;
 	public Stage stage;
 	public static ArrayList<UIElement> uiElements;
-	public static Stack root;
+	public static WidgetGroup root;
 
 	public UI()
 	{
@@ -30,7 +30,7 @@ public class UI
 		stage = new Stage();
 		skin = new Skin(Gdx.files.internal("data/uiskin.json"));
 
-		root = new Stack();
+		root = new WidgetGroup();
 		root.setFillParent(true);
 		stage.addActor(root);
 
@@ -41,7 +41,7 @@ public class UI
 	{
 		for (UIElement ele : uiElements)
 			if(ele.isShowing())
-				ele.onUpdate();
+				ele.doUpdate();
 		stage.act(Math.min(Gdx.graphics.getDeltaTime(), 1 / 30f));
 		stage.draw();
 		Table.drawDebug(stage);
@@ -159,6 +159,6 @@ public class UI
 
 		dialogWrapperTable.add(dialog);
 
-		root.add(dialogWrapperTable);
+		root.addActor(dialogWrapperTable);
 	}
 }
