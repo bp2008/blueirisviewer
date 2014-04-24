@@ -40,7 +40,7 @@ public class UI
 	public void render()
 	{
 		for (UIElement ele : uiElements)
-			if(ele.isShowing())
+			if (ele.isShowing())
 				ele.doUpdate();
 		stage.act(Math.min(Gdx.graphics.getDeltaTime(), 1 / 30f));
 		stage.draw();
@@ -69,6 +69,19 @@ public class UI
 		for (UIElement ele : uiElements)
 			if (ele.getClass().getSimpleName().equals(windowClass.getSimpleName()))
 				ele.show();
+	}
+	public boolean isAnyWindowOpen()
+	{
+		for (UIElement ele : uiElements)
+			if(ele.isShowing())
+				return true;
+		return false;
+	}
+
+	public void closeAllUIWindows()
+	{
+		for (UIElement ele : uiElements)
+			ele.hide();
 	}
 
 	public static void setModal(boolean isModal)

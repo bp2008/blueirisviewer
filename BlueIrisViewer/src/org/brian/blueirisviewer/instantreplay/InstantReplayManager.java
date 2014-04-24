@@ -424,7 +424,7 @@ public class InstantReplayManager
 
 	public boolean touchDown(int screenX, int screenY, int pointer, int button)
 	{
-		if (!enableInstantReplay || screenX > BlueIrisViewer.iScreenWidth)
+		if (!enableInstantReplay || screenY < BlueIrisViewer.iScreenHeight - 40)
 			return false;
 		if (pointer == 0)
 			pointerIsDown = true;
@@ -433,7 +433,7 @@ public class InstantReplayManager
 
 	public boolean touchUp(int screenX, int screenY, int pointer, int button)
 	{
-		if (!enableInstantReplay || screenX > BlueIrisViewer.iScreenWidth)
+		if (!enableInstantReplay || screenY < BlueIrisViewer.iScreenHeight - 40)
 			return false;
 		pointerIsDown = false;
 		return handleDragEvent(screenX, screenY);
@@ -441,7 +441,7 @@ public class InstantReplayManager
 
 	public boolean touchDragged(int screenX, int screenY, int pointer)
 	{
-		if (!enableInstantReplay || screenX > BlueIrisViewer.iScreenWidth)
+		if (!enableInstantReplay || screenY < BlueIrisViewer.iScreenHeight - 40)
 			return false;
 		if (pointerIsDown)
 			return handleDragEvent(screenX, screenY);
@@ -450,7 +450,7 @@ public class InstantReplayManager
 
 	public boolean mouseMoved(int screenX, int screenY)
 	{
-		if (!enableInstantReplay || screenX > BlueIrisViewer.iScreenWidth)
+		if (!enableInstantReplay)
 			return false;
 		if (screenY > BlueIrisViewer.iScreenHeight - 80)
 			setVisible(true);

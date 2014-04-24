@@ -221,9 +221,12 @@ public class BlueIrisViewer implements ApplicationListener
 		{
 			if (ui.stage.keyTyped(character))
 				return true;
-			if (character == 'o' || character == 'O')
+			if (character == 'o' || character == 'O' || character == '' /* ESC */)
 			{
-				ui.openWindow(MainOptionsWnd.class);
+				if (ui.isAnyWindowOpen())
+					ui.closeAllUIWindows();
+				else
+					ui.openWindow(MainOptionsWnd.class);
 				return true;
 			}
 			return false;
@@ -257,8 +260,8 @@ public class BlueIrisViewer implements ApplicationListener
 		@Override
 		public boolean touchUp(int screenX, int screenY, int pointer, int button)
 		{
-			if (images != null && images.instantReplayManager != null)
-				images.instantReplayManager.touchUp(screenX, screenY, pointer, button);
+			if (images != null && images.instantReplayManager != null && images.instantReplayManager.touchUp(screenX, screenY, pointer, button))
+				return true;
 			if (ui.stage.touchUp(screenX, screenY, pointer, button))
 				return true;
 
