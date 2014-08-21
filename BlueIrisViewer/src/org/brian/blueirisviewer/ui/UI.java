@@ -44,12 +44,12 @@ public class UI
 				ele.doUpdate();
 		stage.act(Math.min(Gdx.graphics.getDeltaTime(), 1 / 30f));
 		stage.draw();
-		Table.drawDebug(stage);
+		//Table.drawDebug(stage);
 	}
 
 	public void resize(int width, int height)
 	{
-		stage.setViewport(width, height, false);
+		//stage.setViewport(width, height, false);
 	}
 
 	public void dispose()

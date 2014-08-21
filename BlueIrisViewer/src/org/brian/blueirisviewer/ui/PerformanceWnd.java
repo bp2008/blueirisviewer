@@ -64,15 +64,16 @@ public class PerformanceWnd extends UIElement
 		table.add().height(10);
 		table.row();
 
-		final SelectBox sbImageResolutionMode = new SelectBox(new Object[] { "High Efficiency", "Balanced",
-				"High Quality", "Maximum Quality", "No Optimizations" }, skin);
-		sbImageResolutionMode.setSelection(BlueIrisViewer.bivSettings.imageResolutionMode);
+		final SelectBox<String> sbImageResolutionMode = new SelectBox<String>(skin);
+		sbImageResolutionMode.setItems(new String[] { "High Efficiency", "Balanced",
+				"High Quality", "Maximum Quality", "No Optimizations" });
+		sbImageResolutionMode.setSelectedIndex(BlueIrisViewer.bivSettings.imageResolutionMode);
 		sbImageResolutionMode.addListener(new ChangeListener()
 		{
 			@Override
 			public void changed(ChangeEvent event, Actor actor)
 			{
-				BlueIrisViewer.bivSettings.imageResolutionMode = sbImageResolutionMode.getSelectionIndex();
+				BlueIrisViewer.bivSettings.imageResolutionMode = sbImageResolutionMode.getSelectedIndex();
 				BlueIrisViewer.bivSettings.Save();
 			}
 		});

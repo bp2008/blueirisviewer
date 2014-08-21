@@ -30,7 +30,7 @@ public class Main
 
 		LwjglApplicationConfiguration cfg = new LwjglApplicationConfiguration();
 		cfg.title = "BlueIrisViewer";
-		cfg.useGL20 = false;
+		cfg.useGL30 = false;
 		cfg.width = 1280;
 		cfg.height = 720;
 		cfg.resizable = !bivSettings.borderless;

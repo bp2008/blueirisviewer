@@ -20,8 +20,8 @@ import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 
 public class CameraLayoutWnd extends UIElement
 {
-	Object[] AllCameras = null;
-	List listAllCams;
+	String[] AllCameras = null;
+	List<String> listAllCams;
 
 	public CameraLayoutWnd(Skin skin)
 	{
@@ -131,15 +131,15 @@ public class CameraLayoutWnd extends UIElement
 
 		table.add(new Label("Image Fill Mode:", skin));
 
-		final SelectBox sbImageFillMode = new SelectBox(new Object[] { "Preserve Aspect Ratio", "Stretch to Fill" },
-				skin);
-		sbImageFillMode.setSelection(BlueIrisViewer.bivSettings.imageFillMode);
+		final SelectBox<String> sbImageFillMode = new SelectBox<String>(skin);
+		sbImageFillMode.setItems(new String[] { "Preserve Aspect Ratio", "Stretch to Fill" });
+		sbImageFillMode.setSelectedIndex(BlueIrisViewer.bivSettings.imageFillMode);
 		sbImageFillMode.addListener(new ChangeListener()
 		{
 			@Override
 			public void changed(ChangeEvent event, Actor actor)
 			{
-				BlueIrisViewer.bivSettings.imageFillMode = sbImageFillMode.getSelectionIndex();
+				BlueIrisViewer.bivSettings.imageFillMode = sbImageFillMode.getSelectedIndex();
 				BlueIrisViewer.bivSettings.Save();
 			}
 		});
@@ -153,14 +153,15 @@ public class CameraLayoutWnd extends UIElement
 		table.add(new Label("Hidden Cameras", skin)).align(Align.center);
 		table.row();
 
-		listAllCams = new List(new Object[0], skin);
+		listAllCams = new List<String>(skin);
 		ScrollPane spListAllCams = new ScrollPane(listAllCams, skin);
 		spListAllCams.setFadeScrollBars(false);
 		spListAllCams.setScrollingDisabled(true, false);
 
 		table.add(spListAllCams).maxHeight(200).align(Align.center);
 
-		final List listHiddenCams = new List(BlueIrisViewer.bivSettings.getHiddenCamsObjectList(), skin);
+		final List<String> listHiddenCams = new List<String>(skin);
+		listHiddenCams.setItems(BlueIrisViewer.bivSettings.getHiddenCamsStringArray());
 		ScrollPane spListHiddenCams = new ScrollPane(listHiddenCams, skin);
 		spListHiddenCams.setFadeScrollBars(false);
 		spListHiddenCams.setScrollingDisabled(true, false);
@@ -177,12 +178,12 @@ public class CameraLayoutWnd extends UIElement
 			@Override
 			public void changed(ChangeEvent event, Actor actor)
 			{
-				String selected = listAllCams.getSelection();
+				String selected = listAllCams.getSelected();
 				if (selected != null && !BlueIrisViewer.bivSettings.hiddenCams.contains(selected))
 				{
 					BlueIrisViewer.bivSettings.hiddenCams.add(selected);
 					BlueIrisViewer.bivSettings.Save();
-					listHiddenCams.setItems(BlueIrisViewer.bivSettings.getHiddenCamsObjectList());
+					listHiddenCams.setItems(BlueIrisViewer.bivSettings.getHiddenCamsStringArray());
 				}
 			}
 		});
@@ -195,12 +196,12 @@ public class CameraLayoutWnd extends UIElement
 			@Override
 			public void changed(ChangeEvent event, Actor actor)
 			{
-				String selected = listHiddenCams.getSelection();
+				String selected = listHiddenCams.getSelected();
 				if (selected != null)
 				{
 					BlueIrisViewer.bivSettings.hiddenCams.remove(selected);
 					BlueIrisViewer.bivSettings.Save();
-					listHiddenCams.setItems(BlueIrisViewer.bivSettings.getHiddenCamsObjectList());
+					listHiddenCams.setItems(BlueIrisViewer.bivSettings.getHiddenCamsStringArray());
 				}
 			}
 		});
@@ -249,7 +250,7 @@ public class CameraLayoutWnd extends UIElement
 	{
 		if (AllCameras == null && BlueIrisViewer.images != null)
 		{
-			AllCameras = BlueIrisViewer.images.GetCameraNamesObjectArray();
+			AllCameras = BlueIrisViewer.images.GetCameraNamesStringArray();
 			if (AllCameras != null)
 				listAllCams.setItems(AllCameras);
 		}

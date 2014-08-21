@@ -674,16 +674,16 @@ public class Images
 		resize(BlueIrisViewer.iScreenWidth, BlueIrisViewer.iScreenHeight);
 	}
 
-	public Object[] GetCameraNamesObjectArray()
+	public String[] GetCameraNamesStringArray()
 	{
 		synchronized (allCameraNames)
 		{
 			if (this.allCameraNames.size() == 0)
 				return null;
-			Object[] cameraNamesObjects = new Object[this.allCameraNames.size()];
+			String[] cameraNamesStrings = new String[this.allCameraNames.size()];
 			for (int i = 0; i < this.allCameraNames.size(); i++)
-				cameraNamesObjects[i] = allCameraNames.get(i);
-			return cameraNamesObjects;
+				cameraNamesStrings[i] = allCameraNames.get(i);
+			return cameraNamesStrings;
 		}
 	}
 }

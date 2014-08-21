@@ -31,11 +31,11 @@ public class BIVSettings extends SerializableObjectBase
 	public ArrayList<String> hiddenCams = new ArrayList<String>();
 	public boolean logErrorsToDisk = true;
 	
-	public Object[] getHiddenCamsObjectList()
+	public String[] getHiddenCamsStringArray()
 	{
-		Object[] objs = new Object[hiddenCams.size()];
-		for(int i = 0; i < objs.length; i++)
-			objs[i] = hiddenCams.get(i);
-		return objs;
+		String[] strs = new String[hiddenCams.size()];
+		for(int i = 0; i < strs.length; i++)
+			strs[i] = hiddenCams.get(i);
+		return strs;
 	}
 }
