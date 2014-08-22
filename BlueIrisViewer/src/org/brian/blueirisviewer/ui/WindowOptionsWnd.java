@@ -59,7 +59,11 @@ public class WindowOptionsWnd extends UIElement
 			public void changed(ChangeEvent event, Actor actor)
 			{
 				BlueIrisViewer.bivSettings.borderless = !BlueIrisViewer.bivSettings.borderless;
-				BlueIrisViewer.bivSettings.restartBorderlessToggle = true;
+				BlueIrisViewer.windowHelper.SetWindowBorderless(BlueIrisViewer.bivSettings.borderless);
+				BlueIrisViewer.bivSettings.Save();
+
+				// The following restartBorderlessToggle flag is no longer necessary.
+				// BlueIrisViewer.bivSettings.restartBorderlessToggle = true;
 				// The save will be performed in the render thread.
 			}
 		});
@@ -112,9 +116,11 @@ public class WindowOptionsWnd extends UIElement
 		table.add().height(20);
 		table.row();
 
-		if (BlueIrisViewer.bivSettings.borderless)
+		// if (BlueIrisViewer.bivSettings.borderless)
 		{
-			table.add("Choose a monitor to fullscreen on").colspan(4).padBottom(10).align(Align.center);
+			table.add("Choose a monitor to fullscreen on").colspan(4).align(Align.center);
+			table.row();
+			table.add("(this will enable borderless mode)").colspan(4).padBottom(10).align(Align.center);
 			table.row();
 
 			monitorButtons = new WidgetGroup();
@@ -226,7 +232,7 @@ public class WindowOptionsWnd extends UIElement
 	@Override
 	protected void onShow()
 	{
-		if (BlueIrisViewer.bivSettings.borderless)
+		// if (BlueIrisViewer.bivSettings.borderless)
 		{
 			GraphicsEnvironment env = GraphicsEnvironment.getLocalGraphicsEnvironment();
 			GraphicsDevice[] allScreens = env.getScreenDevices();
@@ -310,6 +316,11 @@ public class WindowOptionsWnd extends UIElement
 					@Override
 					public void changed(ChangeEvent event, Actor actor)
 					{
+						if (!BlueIrisViewer.bivSettings.borderless)
+						{
+							BlueIrisViewer.bivSettings.borderless = true;
+							BlueIrisViewer.windowHelper.SetWindowBorderless(true);
+						}
 						IntRectangle i = new IntRectangle(screen.x, screen.y, screen.width, screen.height);
 						BlueIrisViewer.bivSettings.startPositionX = i.x;
 						BlueIrisViewer.bivSettings.startPositionY = i.y;

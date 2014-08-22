@@ -15,6 +15,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.WidgetGroup;
 import com.badlogic.gdx.scenes.scene2d.ui.Window;
 import com.badlogic.gdx.scenes.scene2d.utils.Align;
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
+import com.badlogic.gdx.utils.viewport.ScreenViewport;
 
 public class UI
 {
@@ -27,7 +28,7 @@ public class UI
 	{
 		uiElements = new ArrayList<UIElement>();
 
-		stage = new Stage();
+		stage = new Stage(new ScreenViewport());
 		skin = new Skin(Gdx.files.internal("data/uiskin.json"));
 
 		root = new WidgetGroup();
@@ -49,7 +50,7 @@ public class UI
 
 	public void resize(int width, int height)
 	{
-		//stage.setViewport(width, height, false);
+		stage.getViewport().update(width, height, true);
 	}
 
 	public void dispose()

@@ -46,7 +46,7 @@ public class BlueIrisViewer implements ApplicationListener
 
 	private long lastResize = 0;
 	private long lastHandledResize = 0;
-	private boolean isDragging = false;
+	private boolean isDraggingButton0 = false;
 	private long skipThisResize = 0;
 
 	public static WindowHelper windowHelper;
@@ -81,6 +81,7 @@ public class BlueIrisViewer implements ApplicationListener
 
 		if (bivSettings.restartBorderlessToggle)
 		{
+			// The restartBorderlessToggle flag should no longer be used.
 			bivSettings.restartBorderlessToggle = false;
 			bivSettings.Save();
 			ui.openWindow(MainOptionsWnd.class);
@@ -129,7 +130,8 @@ public class BlueIrisViewer implements ApplicationListener
 		if (lastHandledResize != lastResize && skipThisResize != lastResize
 				&& lastResize + 250 < GameTime.getRealTime())
 		{
-			// Last resize was at least 100 ms ago, and we haven't yet handled it by setting the DisplayMode.
+			// This code prevents an issue where you can resize the window and then drag it with the touch events, causing the window to revert to its previous size
+			// Last resize was at least 250 ms ago, and we haven't yet handled it by setting the DisplayMode.
 			lastHandledResize = lastResize;
 			if (windowHelper != null)
 				windowHelper.SetWindowRectangle(windowHelper.GetWindowRectangle());
@@ -155,9 +157,10 @@ public class BlueIrisViewer implements ApplicationListener
 	{
 		synchronized (resizeLock)
 		{
-			System.out.println(w + "x" + h + " isDragging: " + isDragging);
-			if (!isDragging && !bivSettings.disableWindowDragging && !bivSettings.borderless)
+			if (!isDraggingButton0 && !bivSettings.disableWindowDragging && !bivSettings.borderless)
 			{
+				// This code prevents an issue where you can resize the window and then drag it with the touch events, causing the window to revert to its previous size
+				System.out.println(w + "x" + h + " isDraggingButton0: " + isDraggingButton0);
 				lastResize = GameTime.getRealTime();
 				if (skipThisResize == 0)
 					skipThisResize = lastResize;
@@ -197,9 +200,9 @@ public class BlueIrisViewer implements ApplicationListener
 
 	public InputProcessor myInputProcessor = new InputProcessor()
 	{
-		IntRectangle storedPosition = new IntRectangle(0, 0, 1, 1);
-		int downX = 0;
-		int downY = 0;
+		IntRectangle windowPosAtMouseDown = new IntRectangle(0, 0, 1, 1);
+		int mouseDownGlobalCoordX = 0;
+		int mouseDownGlobalCoordY = 0;
 		long nextMove = Long.MIN_VALUE;
 		int lastDownImageId = -1;
 		boolean movedSinceLastDown = false;
@@ -239,14 +242,16 @@ public class BlueIrisViewer implements ApplicationListener
 					|| (images != null && images.instantReplayManager != null && images.instantReplayManager.touchDown(
 							screenX, screenY, pointer, button)))
 				return true;
-			isDragging = true;
-			if (pointer == 0)
+			if (pointer == 0 && button == 0)
 			{
+				isDraggingButton0 = true;
 				if (windowHelper != null)
 				{
-					storedPosition = windowHelper.GetWindowRectangle();
-					downX = screenX + storedPosition.x;
-					downY = screenY + storedPosition.y;
+					// Store the current window position in global coordinates
+					windowPosAtMouseDown = windowHelper.GetWindowRectangle();
+					// Store the mouse position in global coordinates
+					mouseDownGlobalCoordX = screenX + windowPosAtMouseDown.x;
+					mouseDownGlobalCoordY = screenY + windowPosAtMouseDown.y;
 					nextMove = Utilities.getTimeInMs() + 200;
 					movedSinceLastDown = false;
 				}
@@ -260,12 +265,14 @@ public class BlueIrisViewer implements ApplicationListener
 		@Override
 		public boolean touchUp(int screenX, int screenY, int pointer, int button)
 		{
+			if (button == 0)
+				isDraggingButton0 = false;
 			if (images != null && images.instantReplayManager != null && images.instantReplayManager.touchUp(screenX, screenY, pointer, button))
 				return true;
 			if (ui.stage.touchUp(screenX, screenY, pointer, button))
 				return true;
 
-			if (!movedSinceLastDown)
+			if (!movedSinceLastDown && button == 0)
 			{
 				if (images.getFullScreenedImageId() == -1)
 				{
@@ -289,7 +296,7 @@ public class BlueIrisViewer implements ApplicationListener
 							.touchDragged(screenX, screenY, pointer)))
 				return true;
 			long timeNow = Utilities.getTimeInMs();
-			if (pointer == 0 && windowHelper != null && timeNow > nextMove && isDragging)
+			if (pointer == 0 && windowHelper != null && timeNow > nextMove && isDraggingButton0)
 			{
 				// If we allow moves too fast, it won't give the window time to move from the
 				// last event and everything goes wrong.
@@ -297,12 +304,14 @@ public class BlueIrisViewer implements ApplicationListener
 				nextMove = timeNow + 16;
 				if (!bivSettings.disableWindowDragging)
 				{
-					IntRectangle currentPosition = windowHelper.GetWindowRectangle();
-					int currentX = screenX + currentPosition.x;
-					int currentY = screenY + currentPosition.y;
-					int dx = currentX - downX;
-					int dy = currentY - downY;
-					windowHelper.SetWindowPosition(new IntPoint(storedPosition.x + dx, storedPosition.y + dy));
+					// Get the window's current position so we can find the mouse's global coordinates
+					IntRectangle currentWindowPosition = windowHelper.GetWindowRectangle();
+					int mouseNowGlobalCoordX = screenX + currentWindowPosition.x;
+					int mouseNowGlobalCoordY = screenY + currentWindowPosition.y;
+					// Find the mouse's current distance from its position when the button was pressed down
+					int dx = mouseNowGlobalCoordX - mouseDownGlobalCoordX;
+					int dy = mouseNowGlobalCoordY - mouseDownGlobalCoordY;
+					windowHelper.SetWindowPosition(new IntPoint(windowPosAtMouseDown.x + dx, windowPosAtMouseDown.y + dy));
 				}
 				movedSinceLastDown = true;
 			}

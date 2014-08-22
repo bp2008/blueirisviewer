@@ -8,4 +8,5 @@ public interface WindowHelper
 	public void SetWindowPosition(IntPoint point);
 	public void SetWindowSize(IntPoint size);
 	public void SetWindowResizable(boolean resizable);
+	public void SetWindowBorderless(boolean borderless);
 }

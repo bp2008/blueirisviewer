@@ -54,4 +54,14 @@ public class DesktopWindowHelper implements WindowHelper
 	{
 		org.lwjgl.opengl.Display.setResizable(resizable);
 	}
+
+	@Override
+	public void SetWindowBorderless(boolean borderless)
+	{
+		IntRectangle currentPosition = GetWindowRectangle();
+		System.setProperty("org.lwjgl.opengl.Window.undecorated", borderless ? "true" : "false");
+		org.lwjgl.opengl.Display.setTitle("BlueIrisViewer");
+		SetWindowRectangle(currentPosition);
+		SetWindowResizable(!borderless);
+	}
 }
