@@ -267,9 +267,9 @@ public class BlueIrisViewer implements ApplicationListener
 		{
 			if (button == 0)
 				isDraggingButton0 = false;
-			if (images != null && images.instantReplayManager != null && images.instantReplayManager.touchUp(screenX, screenY, pointer, button))
-				return true;
 			if (ui.stage.touchUp(screenX, screenY, pointer, button))
+				return true;
+			if (images != null && images.instantReplayManager != null && images.instantReplayManager.touchUp(screenX, screenY, pointer, button))
 				return true;
 
 			if (!movedSinceLastDown && button == 0)
