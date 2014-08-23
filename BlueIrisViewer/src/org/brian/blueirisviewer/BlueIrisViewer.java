@@ -180,7 +180,7 @@ public class BlueIrisViewer implements ApplicationListener
 	@Override
 	public void pause()
 	{
-		GameTime.pause();
+		//GameTime.pause();
 		if (windowHelper != null && bivSettings != null)
 		{
 			IntRectangle currentPosition = windowHelper.GetWindowRectangle();
@@ -195,7 +195,7 @@ public class BlueIrisViewer implements ApplicationListener
 	@Override
 	public void resume()
 	{
-		GameTime.unpause();
+		//GameTime.unpause();
 	}
 
 	public InputProcessor myInputProcessor = new InputProcessor()
@@ -272,7 +272,7 @@ public class BlueIrisViewer implements ApplicationListener
 			if (images != null && images.instantReplayManager != null && images.instantReplayManager.touchUp(screenX, screenY, pointer, button))
 				return true;
 
-			if (!movedSinceLastDown && button == 0)
+			if (images.getNumImages() > 1 && !movedSinceLastDown && button == 0)
 			{
 				if (images.getFullScreenedImageId() == -1)
 				{

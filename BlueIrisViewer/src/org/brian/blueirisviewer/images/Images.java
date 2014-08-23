@@ -97,7 +97,7 @@ public class Images
 		return textures.size();
 	}
 
-	Pattern cameraPattern = Pattern.compile("<option\\W+value=\"([^\"]*?)\">([^<]*?)</option>");
+	Pattern cameraPattern = Pattern.compile("<option[\\w\\W]+?value=\"([^\"]*?)\">([^<]*?)</option>");
 
 	public Images()
 	{
