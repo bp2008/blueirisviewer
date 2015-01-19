@@ -29,7 +29,7 @@ public class Main
 			System.setProperty("org.lwjgl.opengl.Window.undecorated", "true");
 
 		LwjglApplicationConfiguration cfg = new LwjglApplicationConfiguration();
-		cfg.title = "BlueIrisViewer";
+		cfg.title = bivSettings.windowTitle;
 		cfg.useGL30 = false;
 		cfg.width = 1280;
 		cfg.height = 720;

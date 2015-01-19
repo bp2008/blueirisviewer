@@ -30,6 +30,7 @@ public class BIVSettings extends SerializableObjectBase
 	public int instantReplayHistoryLengthMinutes = 5;
 	public ArrayList<String> hiddenCams = new ArrayList<String>();
 	public boolean logErrorsToDisk = true;
+	public String windowTitle = "BlueIrisViewer";
 	
 	public String[] getHiddenCamsStringArray()
 	{
