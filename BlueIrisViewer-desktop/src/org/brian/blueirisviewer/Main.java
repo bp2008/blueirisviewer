@@ -20,6 +20,15 @@ public class Main
 
 	public static void main(String[] args)
 	{
+		try
+		{
+			NativeUtils.loadLibraryFromJar("/libturbojpeg32.dll","/libturbojpeg64.dll","libturbojpeg.dll");
+		}
+		catch (IOException e)
+		{
+			e.printStackTrace();
+		}
+		
 		SerializableObjectBase.SetSerializer(new XStreamSerializer());
 
 		BIVSettings bivSettings = new BIVSettings();

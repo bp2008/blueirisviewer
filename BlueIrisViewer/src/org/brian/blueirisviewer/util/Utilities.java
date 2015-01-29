@@ -126,19 +126,24 @@ public class Utilities
 			con.setReadTimeout(30000);
 			con.setRequestProperty("User-Agent", "BlueIrisViewer");
 			con.setRequestProperty("Accept-Encoding", "gzip");
+			
 			if (postData != null)
 			{
+				con.setDoOutput(true);
 				con.setRequestMethod("POST");
 				con.setRequestProperty("Content-Length", String.valueOf(postData.getData().length));
 				con.setRequestProperty("Content-Type", postData.getContentType());
 				out = con.getOutputStream();
 				BufferedOutputStream bOutStream = new BufferedOutputStream(out);
 				bOutStream.write(postData.getData());
+				bOutStream.flush();
 			}
-
-			String sCookie = sessionCookie;
-			if (sCookie != null && !sCookie.equals(""))
-				con.setRequestProperty("Cookie", "session=" + sCookie);
+			else
+			{
+				String sCookie = sessionCookie;
+				if (sCookie != null && !sCookie.equals(""))
+					con.setRequestProperty("Cookie", "session=" + sCookie);
+			}
 
 			if(user != null && pass != null)
 			{
@@ -228,7 +233,11 @@ public class Utilities
 
 	public static String getStringViaHttpConnection(String sUrl)
 	{
-		byte[] bytes = getViaHttpConnection(sUrl, null);
+		return getStringViaHttpConnection(sUrl, null);
+	}
+	public static String getStringViaHttpConnection(String sUrl, PostData postData)
+	{
+		byte[] bytes = getViaHttpConnection(sUrl, postData);
 		return Utilities.ToString(bytes);
 	}
 

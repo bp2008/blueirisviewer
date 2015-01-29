@@ -1,24 +1,33 @@
 package org.brian.blueirisviewer.images;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.brian.blueirisviewer.BlueIrisViewer;
 import org.brian.blueirisviewer.GameTime;
 import org.brian.blueirisviewer.instantreplay.InstantReplayManager;
 import org.brian.blueirisviewer.ui.ServerSetupWnd;
+import org.brian.blueirisviewer.util.ByteArrayPool;
 import org.brian.blueirisviewer.util.Encryption;
 import org.brian.blueirisviewer.util.IntPoint;
 import org.brian.blueirisviewer.util.IntRunnable;
 import org.brian.blueirisviewer.util.Logger;
+import org.brian.blueirisviewer.util.PostData;
 import org.brian.blueirisviewer.util.Utilities;
 import org.brian.blueirisviewer.util.string;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
+import org.libjpegturbo.turbojpeg.TJ;
+import org.libjpegturbo.turbojpeg.TJDecompressor;
 
 import com.badlogic.gdx.graphics.Pixmap;
+import com.badlogic.gdx.graphics.Pixmap.Format;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.Texture.TextureFilter;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -27,12 +36,17 @@ import com.badlogic.gdx.math.Rectangle;
 public class Images
 {
 	public Vector<String> allCameraNames = new Vector<String>();
+	public Vector<Boolean> allCameraVisibility = new Vector<Boolean>();
 	public Vector<String> cameraNames = new Vector<String>();
 	public Vector<IntPoint> cameraResolutions = new Vector<IntPoint>();
 	public Vector<String> imageURLs = new Vector<String>();
 	public Vector<Integer> sleepDelays = new Vector<Integer>();
 	public Vector<Integer> rotateDegrees = new Vector<Integer>();
-
+	public Vector<Rectangle> blueIrisRectsProportional = new Vector<Rectangle>();
+	public Vector<Rectangle> blueIrisRectsPrecalc = new Vector<Rectangle>();
+	private int mainImageWidth = 100;
+	private int mainImageHeight = 100;
+	private Rectangle blueIrisLayoutModelRect = new Rectangle(0, 0, 100, 100);
 	public ConcurrentLinkedQueue<DownloadedTexture> downloadedTextures = new ConcurrentLinkedQueue<DownloadedTexture>();
 	Vector<Thread> downloaderThreads = new Vector<Thread>();
 	Vector<Texture> textures = new Vector<Texture>();
@@ -52,6 +66,9 @@ public class Images
 	int cols = 1;
 	int rows = 1;
 	long connectedAtTime = 0;
+
+	public int numCams = 0;
+	public int totalRawImageBytes = 0;
 
 	AtomicInteger fullScreenedImageId = new AtomicInteger(-1);
 
@@ -114,6 +131,7 @@ public class Images
 			return;
 		Thread thrStart = new Thread(new Runnable()
 		{
+			@SuppressWarnings("unchecked")
 			public void run()
 			{
 				if (isInitialized || isInitializing)
@@ -130,75 +148,177 @@ public class Images
 						screenHeight.set(BlueIrisViewer.iScreenHeight);
 						isInitializing = true;
 						String processedServerURL = ProcessURL(BlueIrisViewer.bivSettings.serverURL);
-						String page = Utilities.getStringViaHttpConnection(processedServerURL + "jpegpull.htm");
-						if (page.contains("<title>Blue Iris Login</title>"))
+						try
 						{
-							// Page is login page
-							if (isAuthenticationRetry)
-								return;
-							serverRequiresAuthentication = true;
-							HandleLogin(processedServerURL);
-							isInitializing = false;
-							Initialize(true);
-							return;
-						}
-						else
-						{
-							serverRequiresAuthentication = false;
-							if (string.IsNullOrEmpty(page))
-								return; // Page is empty!
-						}
-						// No going back beyond this point.
+							JSONObject camlistObj = new JSONObject();
+							camlistObj.put("cmd", "camlist");
+							String responseStr = Utilities.getStringViaHttpConnection(processedServerURL + "json",
+									new PostData(camlistObj));
 
-						// Assume page is jpegpull as requested.
+							JSONParser jsonParser = new JSONParser();
+							JSONObject responseObj = (JSONObject) jsonParser.parse(responseStr);
 
-						// Precalculate what we can about where to draw images
-						synchronized (BlueIrisViewer.getResizeLock())
-						{
-							synchronized (allCameraNames)
+							if (isFailResponse(responseObj))
 							{
-								Matcher m = cameraPattern.matcher(page);
-								while (m.find())
+								// Must log in
+								serverRequiresAuthentication = true;
+
+								JSONObject loginObj = new JSONObject();
+								loginObj.put("cmd", "login");
+								responseStr = Utilities.getStringViaHttpConnection(processedServerURL + "json",
+										new PostData(loginObj));
+								responseObj = (JSONObject) jsonParser.parse(responseStr);
+								String sessionId = (String) responseObj.get("session");
+								loginObj.put("session", Utilities.sessionCookie);
+								Utilities.sessionCookie = sessionId;
+								String pwDecrypted = string.IsNullOrEmpty(BlueIrisViewer.bivSettings.password) ? ""
+										: Encryption.Decrypt(BlueIrisViewer.bivSettings.password);
+								if (pwDecrypted.equals(BlueIrisViewer.bivSettings.password)
+										&& !string.IsNullOrEmpty(BlueIrisViewer.bivSettings.password))
 								{
-									String data = m.group(1);
-									String[] parts = data.split(";");
-									if (parts.length > 3)
+									BlueIrisViewer.bivSettings.password = Encryption.Encrypt(pwDecrypted);
+									BlueIrisViewer.bivSettings.Save();
+								}
+								loginObj.put(
+										"response",
+										Utilities.Hex_MD5(BlueIrisViewer.bivSettings.username + ":"
+												+ Utilities.sessionCookie + ":" + pwDecrypted));
+								responseStr = Utilities.getStringViaHttpConnection(processedServerURL + "json",
+										new PostData(loginObj));
+								responseObj = (JSONObject) jsonParser.parse(responseStr);
+
+								if (isFailResponse(responseObj))
+								{
+									return;
+								}
+								serverRequiresAuthentication = false;
+							}
+							camlistObj.put("session", Utilities.sessionCookie);
+							responseStr = Utilities.getStringViaHttpConnection(processedServerURL + "json",
+									new PostData(camlistObj));
+							responseObj = (JSONObject) jsonParser.parse(responseStr);
+
+							if (isFailResponse(responseObj))
+								return;
+
+							// String page = Utilities.getStringViaHttpConnection(processedServerURL + "jpegpull.htm");
+							//
+							// if (page.contains("<title>Blue Iris Login</title>"))
+							// {
+							// // Page is login page
+							// if (isAuthenticationRetry)
+							// return;
+							// serverRequiresAuthentication = true;
+							// HandleLogin(processedServerURL);
+							// isInitializing = false;
+							// Initialize(true);
+							// return;
+							// }
+							// else
+							// {
+							// serverRequiresAuthentication = false;
+							// if (string.IsNullOrEmpty(page))
+							// return; // Page is empty!
+							// }
+							// No going back beyond this point.
+
+							// Assume page is jpegpull as requested.
+
+							// Precalculate what we can about where to draw images
+							synchronized (BlueIrisViewer.getResizeLock())
+							{
+								synchronized (allCameraNames)
+								{
+									JSONArray camArr = (JSONArray) responseObj.get("data");
+									for (int i = 0; i < camArr.size(); i++)
 									{
-										int width = Utilities.ParseInt(parts[1], 2500);
-										int height = Utilities.ParseInt(parts[2], 1000);
-										String[] urlParts = parts[3].split("/");
-										if (urlParts.length > 0)
+										JSONObject camDef = (JSONObject) camArr.get(i);
+										if (camDef.containsKey("group"))
 										{
-											String name = urlParts[urlParts.length - 1];
-											int delay = (width * height) / 10000; // Note: This delay is not used
-											if (delay < 250)
-												delay = 250;
-											if (!m.group(2).startsWith("+") && !name.equals("index"))
+											if (allCameraNames.size() == 0)
 											{
-												allCameraNames.add(name);
-												if (!SettingsSayToHideCamera(name))
+												// This is the first group. Populate the camera data lists.
+												mainImageWidth = (int) ((Long) camDef.get("width")).longValue();
+												mainImageHeight = (int) ((Long) camDef.get("height")).longValue();
+
+												JSONArray groupCams = (JSONArray) camDef.get("group");
+												for (int n = 0; n < groupCams.size(); n++)
 												{
-													cameraNames.add(name);
-													cameraResolutions.add(new IntPoint(width, height));
-													imageURLs.add(processedServerURL + "image/" + name);
-													sleepDelays.add(delay);
-													rotateDegrees.add(0);
+													String name = (String) groupCams.get(n);
+													allCameraNames.add(name);
+													if (!SettingsSayToHideCamera(name))
+													{
+														numCams++;
+														allCameraVisibility.add(true);
+														cameraNames.add(name);
+														cameraResolutions.add(new IntPoint(10, 10));
+														imageURLs.add(processedServerURL + "image/" + name);
+														sleepDelays.add(250); // Note: This delay is not used
+														rotateDegrees.add(0);
+													}
+													else
+														allCameraVisibility.add(false);
+												}
+												JSONArray groupCamsRects = (JSONArray) camDef.get("rects");
+												for (int n = 0; n < groupCamsRects.size(); n++)
+												{
+													if (allCameraVisibility.get(n))
+													{
+														JSONArray rectData = (JSONArray) groupCamsRects.get(n);
+														int left = (int) ((Long) rectData.get(0)).longValue();
+														int top = (int) ((Long) rectData.get(1)).longValue();
+														int right = (int) ((Long) rectData.get(2)).longValue();
+														int bottom = (int) ((Long) rectData.get(3)).longValue();
+														float x = (float) left / (float) mainImageWidth;
+														float y = (float) ((mainImageHeight - top) - (bottom - top))
+																/ (float) mainImageHeight;
+														float w = (float) (right - left) / (float) mainImageWidth;
+														float h = (float) (bottom - top) / (float) mainImageHeight;
+														blueIrisRectsProportional.addElement(new Rectangle(x, y, w, h));
+														blueIrisRectsPrecalc.addElement(new Rectangle(x, y, w, h));
+													}
+												}
+											}
+										}
+										else
+										{
+											if (allCameraNames.size() > 0)
+											{
+												// This is a normal camera appearing after the first group.
+												// Record the image dimensions.
+												String name = (String) camDef.get("optionValue");
+												int idx = cameraNames.indexOf(name);
+												if (idx > -1)
+												{
+													int width = (int) ((Long) camDef.get("width")).longValue();
+													int height = (int) ((Long) camDef.get("height")).longValue();
+													cameraResolutions.set(idx, new IntPoint(width, height));
+													totalRawImageBytes += width * height * 3;
 												}
 											}
 										}
 									}
 								}
+								double sqrt = Math.sqrt(imageURLs.size());
+								cols = (int) Math.ceil(sqrt);
+								rows = (int) sqrt;
+								if (cols * rows < imageURLs.size())
+									rows++;
+								HandleOverrideGridSize();
+								imageWidth = BlueIrisViewer.fScreenWidth / cols;
+								imageHeight = BlueIrisViewer.fScreenHeight / rows;
+								aImageWidth.set((int) Math.ceil(imageWidth));
+								aImageHeight.set((int) Math.ceil(imageHeight));
+
+								blueIrisLayoutModelRect = new Rectangle(0, BlueIrisViewer.fScreenHeight,
+										mainImageWidth, mainImageHeight);
+								ScaleRectangleToFitScreenCentered(blueIrisLayoutModelRect);
+								PrecalculateBlueIrisLayoutRectangles();
 							}
-							double sqrt = Math.sqrt(imageURLs.size());
-							cols = (int) Math.ceil(sqrt);
-							rows = (int) sqrt;
-							if (cols * rows < imageURLs.size())
-								rows++;
-							HandleOverrideGridSize();
-							imageWidth = BlueIrisViewer.fScreenWidth / cols;
-							imageHeight = BlueIrisViewer.fScreenHeight / rows;
-							aImageWidth.set((int) Math.ceil(imageWidth));
-							aImageHeight.set((int) Math.ceil(imageHeight));
+						}
+						catch (ParseException ex)
+						{
+							Logger.debug(ex, this);
 						}
 
 						instantReplayManager = new InstantReplayManager(imageURLs.size(),
@@ -279,6 +399,12 @@ public class Images
 						isInitializing = false;
 					}
 				}
+			}
+
+			private boolean isFailResponse(JSONObject responseObj)
+			{
+				return responseObj == null
+						|| (responseObj.containsKey("result") && responseObj.get("result").equals("fail"));
 			}
 
 			private boolean SettingsSayToHideCamera(String name)
@@ -363,20 +489,6 @@ public class Images
 				return queryStr;
 			}
 
-			private void HandleLogin(String processedServerURL)
-			{
-				String pwDecrypted = Encryption.Decrypt(BlueIrisViewer.bivSettings.password);
-				if (pwDecrypted.equals(BlueIrisViewer.bivSettings.password))
-				{
-					BlueIrisViewer.bivSettings.password = Encryption.Encrypt(pwDecrypted);
-					BlueIrisViewer.bivSettings.Save();
-				}
-				Utilities.getStringViaHttpConnection(processedServerURL
-						+ "?page=jpegpull.htm&login="
-						+ Utilities.Hex_MD5(BlueIrisViewer.bivSettings.username + ":" + Utilities.sessionCookie + ":"
-								+ pwDecrypted));
-			}
-
 			private String ProcessURL(String serverURL)
 			{
 				StringBuilder sb = new StringBuilder();
@@ -425,10 +537,43 @@ public class Images
 		if (img.length > 0)
 			try
 			{
+				if (BlueIrisViewer.bLibjpegTurboAvailable && BlueIrisViewer.bivSettings.useLibjpegTurbo)
+				{
+					try
+					{
+						TJDecompressor tjd = new TJDecompressor(img);
+						int w = tjd.getWidth();
+						int h = tjd.getHeight();
+						Pixmap pm = new Pixmap(w, h, Format.RGB888);
+						ByteBuffer bb = pm.getPixels();
+						bb.rewind();
+						int pixelSize = TJ.getPixelSize(TJ.PF_RGB);
+						byte[] rgbData = ByteArrayPool.getArray(w * h * pixelSize);
+						tjd.decompress(rgbData, 0, 0, w, w * pixelSize, h, TJ.PF_RGB, 0);
+						bb.put(rgbData);
+						ByteArrayPool.returnArrayToPool(rgbData);
+						bb.rewind();
+						tjd.close();
+						return pm;
+					}
+					catch (NoClassDefFoundError ex)
+					{
+						BlueIrisViewer.bLibjpegTurboAvailable = false;
+					}
+					catch (UnsatisfiedLinkError ex)
+					{
+						BlueIrisViewer.bLibjpegTurboAvailable = false;
+					}
+					catch (Exception ex)
+					{
+						Logger.debug(ex, Images.class);
+					}
+				}
 				return new Pixmap(img, 0, img.length);
 			}
 			catch (Exception ex)
 			{
+				Logger.debug(ex, Images.class);
 			}
 		return null;
 	}
@@ -460,7 +605,7 @@ public class Images
 		{
 			Texture newTex = null;
 			{
-				newTex = new Texture(dt.data);
+				newTex = new Texture(dt.data, false);
 				dt.data.dispose();
 				newTex.setFilter(TextureFilter.Linear, TextureFilter.Linear);
 			}
@@ -513,8 +658,12 @@ public class Images
 			// Everything seems fine.
 			int full = fullScreenedImageId.get();
 			if (BlueIrisViewer.bivSettings.imageFillMode == 0
-					|| (BlueIrisViewer.bivSettings.imageFillMode == 1 && full == -1))
+					|| (BlueIrisViewer.bivSettings.imageFillMode == 1 && full == -1)
+					|| (BlueIrisViewer.bivSettings.imageFillMode == 2))
 			{
+				// In this block we will render every camera (except the fullscreened one) in its grid position
+				// This block is skipped if imageFillMode is 1 ("Stretch to Fill") and a camera is full screened.
+
 				for (int i = 0; i < textures.size(); i++)
 				{
 					if (full == i)
@@ -522,25 +671,38 @@ public class Images
 					Texture tex = textures.get(i);
 					if (tex != null)
 					{
-						int col = i % cols;
-						int row = i / cols;
-						row = (rows - row) - 1;
+						if (BlueIrisViewer.bivSettings.imageFillMode == 0
+								|| BlueIrisViewer.bivSettings.imageFillMode == 1)
+						{
+							int col = i % cols;
+							int row = i / cols;
+							row = (rows - row) - 1;
 
-						int rot = rotateDegrees.get(i).intValue();
-						boolean rotate90OneWayOrAnother = rot == 90 || rot == 270 || rot == -90 || rot == -270;
+							int rot = rotateDegrees.get(i).intValue();
+							boolean rotate90OneWayOrAnother = rot == 90 || rot == 270 || rot == -90 || rot == -270;
 
-						Rectangle rect = new Rectangle(imageWidth * col, imageHeight * row, imageWidth, imageHeight);
-						if (BlueIrisViewer.bivSettings.imageFillMode == 0)
-							FitImageIntoRect(tex, rect, rotate90OneWayOrAnother);
+							Rectangle rect = new Rectangle(imageWidth * col, imageHeight * row, imageWidth, imageHeight);
+							if (BlueIrisViewer.bivSettings.imageFillMode == 0)
+								FitImageIntoRect(tex, rect, rotate90OneWayOrAnother);
 
-						batch.draw(tex, (float) rect.x, (float) rect.y, rect.width / 2, rect.height / 2,
-								(float) rect.width, (float) rect.height, 1f, 1f, (float) rot, 0, 0, tex.getWidth(),
-								tex.getHeight(), false, false);
+							batch.draw(tex, (float) rect.x, (float) rect.y, rect.width / 2, rect.height / 2,
+									(float) rect.width, (float) rect.height, 1f, 1f, (float) rot, 0, 0, tex.getWidth(),
+									tex.getHeight(), false, false);
+						}
+						else if (BlueIrisViewer.bivSettings.imageFillMode == 2)
+						{
+							Rectangle rect = blueIrisRectsPrecalc.get(i);
+
+							batch.draw(tex, (float) rect.x, (float) rect.y, rect.width / 2, rect.height / 2,
+									(float) rect.width, (float) rect.height, 1f, 1f, 0, 0, 0, tex.getWidth(),
+									tex.getHeight(), false, false);
+						}
 					}
 				}
 			}
 			if (full > -1 && full < textures.size())
 			{
+				// In this block we will render the fullscreened camera
 				int i = full;
 				Texture tex = textures.get(i);
 				if (tex != null)
@@ -549,7 +711,7 @@ public class Images
 					boolean rotate90OneWayOrAnother = rot == 90 || rot == 270 || rot == -90 || rot == -270;
 
 					Rectangle rect = new Rectangle(0, 0, BlueIrisViewer.fScreenWidth, BlueIrisViewer.fScreenHeight);
-					if (BlueIrisViewer.bivSettings.imageFillMode == 0)
+					if (BlueIrisViewer.bivSettings.imageFillMode == 0 || BlueIrisViewer.bivSettings.imageFillMode == 2)
 						FitImageIntoRect(tex, rect, rotate90OneWayOrAnother);
 
 					batch.draw(tex, (float) rect.x, (float) rect.y, rect.width / 2, rect.height / 2,
@@ -568,6 +730,19 @@ public class Images
 			instantReplayManager.render(batch);
 	}
 
+	private void PrecalculateBlueIrisLayoutRectangles()
+	{
+		for (int i = 0; i < blueIrisRectsProportional.size(); i++)
+		{
+			Rectangle propRect = blueIrisRectsProportional.get(i);
+			float x = (propRect.x * blueIrisLayoutModelRect.width) + blueIrisLayoutModelRect.x;
+			float y = (propRect.y * blueIrisLayoutModelRect.height) + blueIrisLayoutModelRect.y;
+			Rectangle preCalcRect = new Rectangle(x, y, propRect.width * blueIrisLayoutModelRect.width, propRect.height
+					* blueIrisLayoutModelRect.height);
+			blueIrisRectsPrecalc.set(i, preCalcRect);
+		}
+	}
+
 	private int ReduceImageDimensionsAndReturnNewWidth(int originalWidth, int originalHeight, int destinationWidth,
 			int destinationHeight)
 	{
@@ -582,13 +757,42 @@ public class Images
 		return (int) newWidth;
 	}
 
+	private void ScaleRectangleToFitScreenCentered(Rectangle rect)
+	{
+		if (rect.height == 0 || rect.width == 0)
+		{
+			rect.x = rect.y = rect.width = rect.height = 0;
+			return;
+		}
+		double ow = rect.width; // original width
+		double oh = rect.height; // original height
+		double or = ow / oh; // original aspect ratio
+		double sw = screenWidth.get();
+		double sh = screenHeight.get();
+		double sr = sw / sh;
+		if (or > sr)
+		{
+			// Rectangle will be shorter than the screen (black bars on top and bottom)
+			rect.width = (float) sw;
+			rect.height = (float) (sw / or);
+		}
+		else
+		{
+			// Rectangle will be narrower than the screen (black bars on sides)
+			rect.height = (float) sh;
+			rect.width = (float) (sh * or);
+		}
+		rect.x = ((float) sw - rect.width) / 2f;
+		rect.y = ((float) sh - rect.height) / 2f;
+	}
+
 	private void FitImageIntoRect(Texture tex, Rectangle rect, boolean rotate90)
 	{
 		if (rotate90)
 		{
 			// Calculate the rectangle position that we want the image to end up in (easy)
-			double oh = tex.getWidth();
-			double ow = tex.getHeight();
+			double oh = tex.getWidth(); // width and height are swapped here intentionally
+			double ow = tex.getHeight(); // width and height are swapped here intentionally
 			double rw = rect.width;
 			double rh = rect.height;
 			double newWidth = rw;
@@ -657,6 +861,9 @@ public class Images
 			aImageWidth.set((int) Math.ceil(imageWidth));
 			aImageHeight.set((int) Math.ceil(imageHeight));
 		}
+		blueIrisLayoutModelRect = new Rectangle(0, h, mainImageWidth, mainImageHeight);
+		ScaleRectangleToFitScreenCentered(blueIrisLayoutModelRect);
+		PrecalculateBlueIrisLayoutRectangles();
 	}
 
 	private void HandleOverrideGridSize()

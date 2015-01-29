@@ -132,7 +132,7 @@ public class CameraLayoutWnd extends UIElement
 		table.add(new Label("Image Fill Mode:", skin));
 
 		final SelectBox<String> sbImageFillMode = new SelectBox<String>(skin);
-		sbImageFillMode.setItems(new String[] { "Preserve Aspect Ratio", "Stretch to Fill" });
+		sbImageFillMode.setItems(new String[] { "Preserve Aspect Ratio", "Stretch to Fill", "Blue Iris Layout" });
 		sbImageFillMode.setSelectedIndex(BlueIrisViewer.bivSettings.imageFillMode);
 		sbImageFillMode.addListener(new ChangeListener()
 		{

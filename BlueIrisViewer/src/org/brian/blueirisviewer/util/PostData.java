@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map.Entry;
 
+import org.json.simple.JSONObject;
+
 public class PostData
 {
 	private byte[] data;
@@ -24,6 +26,33 @@ public class PostData
 	{
 		this.data = data;
 		this.contentType = contentType;
+	}
+
+	public PostData(String data, String contentType)
+	{
+		try
+		{
+			this.data = data.getBytes("UTF-8");
+		}
+		catch (UnsupportedEncodingException e)
+		{
+			Logger.debug(e, this);
+			this.data = new byte[0];
+		}
+		this.contentType = contentType;
+	}
+	public PostData(JSONObject jsonObject)
+	{
+		try
+		{
+			this.data = jsonObject.toJSONString().getBytes("UTF-8");
+		}
+		catch (UnsupportedEncodingException e)
+		{
+			Logger.debug(e, this);
+			this.data = new byte[0];
+		}
+		this.contentType = "text/json";
 	}
 
 	public byte[] getData()

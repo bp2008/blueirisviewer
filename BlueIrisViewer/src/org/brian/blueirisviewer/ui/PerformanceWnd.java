@@ -1,6 +1,7 @@
 package org.brian.blueirisviewer.ui;
 
 import org.brian.blueirisviewer.BlueIrisViewer;
+import org.brian.blueirisviewer.util.OSDetection;
 import org.brian.blueirisviewer.util.Utilities;
 
 import com.badlogic.gdx.scenes.scene2d.Actor;
@@ -65,8 +66,8 @@ public class PerformanceWnd extends UIElement
 		table.row();
 
 		final SelectBox<String> sbImageResolutionMode = new SelectBox<String>(skin);
-		sbImageResolutionMode.setItems(new String[] { "High Efficiency", "Balanced",
-				"High Quality", "Maximum Quality", "No Optimizations" });
+		sbImageResolutionMode.setItems(new String[] { "High Efficiency", "Balanced", "High Quality", "Maximum Quality",
+				"No Optimizations" });
 		sbImageResolutionMode.setSelectedIndex(BlueIrisViewer.bivSettings.imageResolutionMode);
 		sbImageResolutionMode.addListener(new ChangeListener()
 		{
@@ -159,6 +160,29 @@ public class PerformanceWnd extends UIElement
 
 		table.add().height(10);
 		table.row();
+
+		if (OSDetection.isWindows())
+		{
+			final CheckBox cbUseLibjpegTurbo = new CheckBox(
+					"  Use libjpeg-turbo for image decompression\n        (reduces CPU usage, but\n          increases memory usage)",
+					skin);
+			cbUseLibjpegTurbo.setChecked(BlueIrisViewer.bivSettings.useLibjpegTurbo);
+			table.add(cbUseLibjpegTurbo).colspan(2).padBottom(10).align(Align.center);
+			table.row();
+
+			table.add().height(10);
+			table.row();
+			
+			cbUseLibjpegTurbo.addListener(new ChangeListener()
+			{
+				@Override
+				public void changed(ChangeEvent event, Actor actor)
+				{
+					BlueIrisViewer.bivSettings.useLibjpegTurbo = cbUseLibjpegTurbo.isChecked();
+					BlueIrisViewer.bivSettings.Save();
+				}
+			});
+		}
 
 		final TextButton btnClose = new TextButton("Close", skin);
 		btnClose.addListener(new ChangeListener()

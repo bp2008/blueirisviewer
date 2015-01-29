@@ -19,7 +19,7 @@ public class BIVSettings extends SerializableObjectBase
 	public boolean restartBorderlessToggle = false;
 	public int imageRefreshDelayMS = 250;
 	public boolean bOverrideGridLayout = false;
-	public int imageFillMode = 0; // 0: "Preserve Aspect Ratio", 1: "Stretch to Fill"
+	public int imageFillMode = 0; // 0: "Preserve Aspect Ratio", 1: "Stretch to Fill", 2: "Blue Iris Layout"
 	public boolean modalUI = true;
 	public String username = "";
 	public String password = "";
@@ -31,6 +31,7 @@ public class BIVSettings extends SerializableObjectBase
 	public ArrayList<String> hiddenCams = new ArrayList<String>();
 	public boolean logErrorsToDisk = true;
 	public String windowTitle = "BlueIrisViewer";
+	public boolean useLibjpegTurbo = true;
 	
 	public String[] getHiddenCamsStringArray()
 	{

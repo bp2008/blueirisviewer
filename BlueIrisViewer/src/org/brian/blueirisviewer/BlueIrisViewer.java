@@ -53,6 +53,8 @@ public class BlueIrisViewer implements ApplicationListener
 
 	public static Texture texLightGray, texDarkGreen, texDarkGray, texRed;
 
+	public static boolean bLibjpegTurboAvailable = false;
+
 	public BlueIrisViewer(WindowHelper windowHelper)
 	{
 		BlueIrisViewer.windowHelper = windowHelper;
@@ -62,7 +64,7 @@ public class BlueIrisViewer implements ApplicationListener
 	public void create()
 	{
 		// DisplayMode[] dms = Gdx.graphics.getDisplayModes();
-		//Texture.setEnforcePotImages(false);
+		// Texture.setEnforcePotImages(false);
 
 		bivSettings = new BIVSettings();
 		bivSettings.Load();
@@ -130,7 +132,8 @@ public class BlueIrisViewer implements ApplicationListener
 		if (lastHandledResize != lastResize && skipThisResize != lastResize
 				&& lastResize + 250 < GameTime.getRealTime())
 		{
-			// This code prevents an issue where you can resize the window and then drag it with the touch events, causing the window to revert to its previous size
+			// This code prevents an issue where you can resize the window and then drag it with the touch events,
+			// causing the window to revert to its previous size
 			// Last resize was at least 250 ms ago, and we haven't yet handled it by setting the DisplayMode.
 			lastHandledResize = lastResize;
 			if (windowHelper != null)
@@ -159,7 +162,8 @@ public class BlueIrisViewer implements ApplicationListener
 		{
 			if (!isDraggingButton0 && !bivSettings.disableWindowDragging && !bivSettings.borderless)
 			{
-				// This code prevents an issue where you can resize the window and then drag it with the touch events, causing the window to revert to its previous size
+				// This code prevents an issue where you can resize the window and then drag it with the touch events,
+				// causing the window to revert to its previous size
 				System.out.println(w + "x" + h + " isDraggingButton0: " + isDraggingButton0);
 				lastResize = GameTime.getRealTime();
 				if (skipThisResize == 0)
@@ -180,7 +184,7 @@ public class BlueIrisViewer implements ApplicationListener
 	@Override
 	public void pause()
 	{
-		//GameTime.pause();
+		// GameTime.pause();
 		if (windowHelper != null && bivSettings != null)
 		{
 			IntRectangle currentPosition = windowHelper.GetWindowRectangle();
@@ -195,7 +199,7 @@ public class BlueIrisViewer implements ApplicationListener
 	@Override
 	public void resume()
 	{
-		//GameTime.unpause();
+		// GameTime.unpause();
 	}
 
 	public InputProcessor myInputProcessor = new InputProcessor()
@@ -269,18 +273,31 @@ public class BlueIrisViewer implements ApplicationListener
 				isDraggingButton0 = false;
 			if (ui.stage.touchUp(screenX, screenY, pointer, button))
 				return true;
-			if (images != null && images.instantReplayManager != null && images.instantReplayManager.touchUp(screenX, screenY, pointer, button))
+			if (images != null && images.instantReplayManager != null
+					&& images.instantReplayManager.touchUp(screenX, screenY, pointer, button))
 				return true;
 
 			if (images.getNumImages() > 1 && !movedSinceLastDown && button == 0)
 			{
 				if (images.getFullScreenedImageId() == -1)
 				{
-					int col = (int) (screenX / images.getImageWidth());
-					int row = (int) (screenY / images.getImageHeight());
-					if (lastDownImageId == (row * images.getColCount()) + col
-							&& lastDownImageId < images.getNumImages())
-						images.setFullScreenedImageId(lastDownImageId);
+					if (BlueIrisViewer.bivSettings.imageFillMode == 2)
+					{
+						int y = (int)BlueIrisViewer.fScreenHeight - screenY;
+						for (int i = 0; i < images.blueIrisRectsPrecalc.size(); i++)
+						{
+							if (images.blueIrisRectsPrecalc.get(i).contains(screenX, y))
+								images.setFullScreenedImageId(i);
+						}
+					}
+					else
+					{
+						int col = (int) (screenX / images.getImageWidth());
+						int row = (int) (screenY / images.getImageHeight());
+						if (lastDownImageId == (row * images.getColCount()) + col
+								&& lastDownImageId < images.getNumImages())
+							images.setFullScreenedImageId(lastDownImageId);
+					}
 				}
 				else
 					images.setFullScreenedImageId(-1);
@@ -311,7 +328,8 @@ public class BlueIrisViewer implements ApplicationListener
 					// Find the mouse's current distance from its position when the button was pressed down
 					int dx = mouseNowGlobalCoordX - mouseDownGlobalCoordX;
 					int dy = mouseNowGlobalCoordY - mouseDownGlobalCoordY;
-					windowHelper.SetWindowPosition(new IntPoint(windowPosAtMouseDown.x + dx, windowPosAtMouseDown.y + dy));
+					windowHelper.SetWindowPosition(new IntPoint(windowPosAtMouseDown.x + dx, windowPosAtMouseDown.y
+							+ dy));
 				}
 				movedSinceLastDown = true;
 			}
