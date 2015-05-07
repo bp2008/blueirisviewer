@@ -8,7 +8,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
-import org.brian.blueirisviewer.BIVSettings;
 import org.brian.blueirisviewer.BlueIrisViewer;
 import org.brian.blueirisviewer.GameTime;
 import org.brian.blueirisviewer.instantreplay.InstantReplayManager;
@@ -172,9 +171,8 @@ public class Images
 								responseStr = Utilities.getStringViaHttpConnection(processedServerURL + "json",
 										new PostData(loginObj));
 								responseObj = (JSONObject) jsonParser.parse(responseStr);
-								String sessionId = (String) responseObj.get("session");
+								Utilities.sessionCookie = (String) responseObj.get("session");
 								loginObj.put("session", Utilities.sessionCookie);
-								Utilities.sessionCookie = sessionId;
 								String pwDecrypted = string.IsNullOrEmpty(BlueIrisViewer.bivSettings.password) ? ""
 										: Encryption.Decrypt(BlueIrisViewer.bivSettings.password);
 								if (pwDecrypted.equals(BlueIrisViewer.bivSettings.password)
@@ -195,6 +193,7 @@ public class Images
 								{
 									return;
 								}
+								Utilities.sessionCookie = (String) responseObj.get("session");;
 								serverRequiresAuthentication = false;
 							}
 							camlistObj.put("session", Utilities.sessionCookie);
