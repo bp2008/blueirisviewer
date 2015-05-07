@@ -1,18 +1,21 @@
 package org.brian.blueirisviewer.images;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
+import org.brian.blueirisviewer.BIVSettings;
 import org.brian.blueirisviewer.BlueIrisViewer;
 import org.brian.blueirisviewer.GameTime;
 import org.brian.blueirisviewer.instantreplay.InstantReplayManager;
 import org.brian.blueirisviewer.ui.ServerSetupWnd;
 import org.brian.blueirisviewer.util.ByteArrayPool;
 import org.brian.blueirisviewer.util.Encryption;
+import org.brian.blueirisviewer.util.HttpHelper;
 import org.brian.blueirisviewer.util.IntPoint;
 import org.brian.blueirisviewer.util.IntRunnable;
 import org.brian.blueirisviewer.util.Logger;
@@ -39,7 +42,6 @@ public class Images
 	public Vector<Boolean> allCameraVisibility = new Vector<Boolean>();
 	public Vector<String> cameraNames = new Vector<String>();
 	public Vector<IntPoint> cameraResolutions = new Vector<IntPoint>();
-	public Vector<String> imageURLs = new Vector<String>();
 	public Vector<Integer> sleepDelays = new Vector<Integer>();
 	public Vector<Integer> rotateDegrees = new Vector<Integer>();
 	public Vector<Rectangle> blueIrisRectsProportional = new Vector<Rectangle>();
@@ -69,6 +71,8 @@ public class Images
 
 	public int numCams = 0;
 	public int totalRawImageBytes = 0;
+
+	String processedServerURL;
 
 	AtomicInteger fullScreenedImageId = new AtomicInteger(-1);
 
@@ -147,7 +151,7 @@ public class Images
 						screenWidth.set(BlueIrisViewer.iScreenWidth);
 						screenHeight.set(BlueIrisViewer.iScreenHeight);
 						isInitializing = true;
-						String processedServerURL = ProcessURL(BlueIrisViewer.bivSettings.serverURL);
+						processedServerURL = ProcessURL(BlueIrisViewer.bivSettings.serverURL);
 						try
 						{
 							JSONObject camlistObj = new JSONObject();
@@ -252,7 +256,6 @@ public class Images
 														allCameraVisibility.add(true);
 														cameraNames.add(name);
 														cameraResolutions.add(new IntPoint(10, 10));
-														imageURLs.add(processedServerURL + "image/" + name);
 														sleepDelays.add(250); // Note: This delay is not used
 														rotateDegrees.add(0);
 													}
@@ -299,10 +302,10 @@ public class Images
 										}
 									}
 								}
-								double sqrt = Math.sqrt(imageURLs.size());
+								double sqrt = Math.sqrt(numCams);
 								cols = (int) Math.ceil(sqrt);
 								rows = (int) sqrt;
-								if (cols * rows < imageURLs.size())
+								if (cols * rows < numCams)
 									rows++;
 								HandleOverrideGridSize();
 								imageWidth = BlueIrisViewer.fScreenWidth / cols;
@@ -321,62 +324,194 @@ public class Images
 							Logger.debug(ex, this);
 						}
 
-						instantReplayManager = new InstantReplayManager(imageURLs.size(),
+						instantReplayManager = new InstantReplayManager(numCams,
 								BlueIrisViewer.bivSettings.instantReplayEnabled,
 								BlueIrisViewer.bivSettings.instantReplayHistoryLengthMinutes);
 
 						// Populate texture list
-						for (int i = 0; i < imageURLs.size(); i++)
+						for (int i = 0; i < numCams; i++)
 							textures.add(null);
 
 						// Create downloader threads
-						for (int i = 0; i < imageURLs.size(); i++)
+						for (int i = 0; i < numCams; i++)
 							downloaderThreads.add(new Thread(new IntRunnable(i)
 							{
 								public void run()
 								{
-									String myUrl = imageURLs.get(myInt);
+									String jpegUrl = processedServerURL + "image/" + cameraNames.get(myInt);
 									while (!abortThreads)
 									{
-										int sleepFor = BlueIrisViewer.bivSettings.imageRefreshDelayMS;// sleepDelays.get(myInt).intValue();
-										// System.out.println("Downloading " + myUrl + Utilities.getTimeInMs());
-
-										if (!instantReplayManager.IsProcessingLiveCamera(myInt))
+										if (BlueIrisViewer.bivSettings.useMjpegStream)
 										{
-											int full = fullScreenedImageId.get();
-
-											byte[] img = Utilities.getViaHttpConnection(myUrl
-													+ GetImageModeQueryString(myInt, full), null);
-
-											if (abortThreads)
-												break;
-											else if (img.length > 0)
-												instantReplayManager.LiveImageReceived(myInt, img);
-											if (!BlueIrisViewer.bivSettings.instantReplayEnabled
-													|| BlueIrisViewer.images.instantReplayManager
-															.getCurrentTimeOffset() == 0)
-											{
-												if (full == myInt)
-													sleepFor = 0;
-												else if (full > -1)
-													sleepFor += 1000;
-											}
+											HandleThrottledMjpegStreaming();
 										}
-										else if (sleepFor < 25)
-											sleepFor = 25; // If we get here, the downloader is getting
-															// ahead of the render thread.
-
-										if (sleepFor > 0)
+										else
 										{
-											try
-											{
-												Thread.sleep(sleepFor);
-											}
-											catch (InterruptedException e)
-											{
-											}
+											HandleRefreshingJpegStreaming(jpegUrl);
 										}
 									}
+								}
+
+								public void HandleRefreshingJpegStreaming(String jpegUrl)
+								{
+									int sleepFor = BlueIrisViewer.bivSettings.imageRefreshDelayMS;
+
+									if (instantReplayManager.IsProcessingLiveCamera(myInt))
+									{
+										// If we get here, the downloader is getting ahead of the render thread.
+										sleepFor = 5;
+									}
+									else
+									{
+										int full = fullScreenedImageId.get();
+
+										byte[] img = Utilities.getViaHttpConnection(
+												jpegUrl + GetImageModeQueryString(myInt, full), null);
+
+										if (abortThreads)
+											return;
+										else if (img.length > 0)
+											instantReplayManager.LiveImageReceived(myInt, img);
+										if (!BlueIrisViewer.bivSettings.instantReplayEnabled
+												|| BlueIrisViewer.images.instantReplayManager.getCurrentTimeOffset() == 0)
+										{
+											if (full == myInt)
+												sleepFor = 0;
+											else if (full > -1)
+												sleepFor += 1000;
+										}
+									}
+
+									if (sleepFor > 0 && !abortThreads)
+										GradualSleepWithEarlyBreak(sleepFor);
+								}
+
+								public void HandleThrottledMjpegStreaming()
+								{
+									String mjpegUrl = processedServerURL + "mjpg/" + cameraNames.get(myInt)
+											+ "/video.mjpg";
+									try
+									{
+										HttpHelper httpHelper = new HttpHelper(mjpegUrl);
+										InputStream inStream = httpHelper.GET();
+										try
+										{
+											while (!abortThreads && BlueIrisViewer.bivSettings.useMjpegStream)
+											{
+												HttpHelper.ReadUntilCompleteStringFound("Content-Length: ", inStream);
+												String sLength = HttpHelper.ReadUntilCharFound('\r', inStream).trim();
+												int jpegLength = Utilities.ParseInt(sLength, -1);
+												if (jpegLength < 0)
+													throw new Exception("Content-Length was " + sLength);
+												if (abortThreads)
+													break;
+
+												// Keep reading chars one by one until we reach the end of a "\r\n\r\n"
+												// (indicating the end of the http headers).
+												HttpHelper.ReadUntilCompleteStringFound("\n\r\n", inStream); // We
+																												// already
+																												// consumed
+																												// a \r
+																												// character
+																												// after
+																												// reading
+																												// the
+																												// length
+																												// of
+																												// the
+																												// image.
+
+												// Now the jpeg data begins, and it has length jpegLength
+												byte[] jpegBuffer = new byte[jpegLength];
+												int read = 0, newRead = 0;
+												while (read < jpegLength)
+												{
+													newRead = inStream.read(jpegBuffer, read, jpegBuffer.length - read);
+													if (newRead == 0)
+														throw new Exception("EOF reading image data");
+													read += newRead;
+												}
+
+												if (abortThreads)
+													break;
+												else if (jpegBuffer.length > 0)
+												{
+													// Don't submit this frame until the instant replay
+													// manager is ready for it.
+													while (instantReplayManager.IsProcessingLiveCamera(myInt))
+													{
+														GradualSleepWithEarlyBreak(5);
+														if (abortThreads)
+															break;
+													}
+													instantReplayManager.LiveImageReceived(myInt, jpegBuffer);
+												}
+												int sleepFor = BlueIrisViewer.bivSettings.imageRefreshDelayMS;
+												// If we get here, we just submitted an image
+												// to the instant replay manager.
+												if (!BlueIrisViewer.bivSettings.instantReplayEnabled
+														|| BlueIrisViewer.images.instantReplayManager
+																.getCurrentTimeOffset() == 0)
+												{
+													int full = fullScreenedImageId.get();
+													if (full == myInt)
+														sleepFor = 0;
+													else if (full > -1)
+														sleepFor += 1000;
+												}
+
+												if (sleepFor > 0 && !abortThreads)
+												{
+													GradualSleepWithEarlyBreak(sleepFor);
+												}
+											}
+										}
+										finally
+										{
+											inStream.close();
+										}
+									}
+									catch (Exception ex)
+									{
+										Logger.debug(ex, this);
+									}
+								}
+
+								private void GradualSleepWithEarlyBreak(int totalSleepTimeMs)
+								{
+									if (totalSleepTimeMs <= 0)
+										return;
+									if (totalSleepTimeMs <= 5)
+									{
+										try
+										{
+											Thread.sleep(totalSleepTimeMs);
+										}
+										catch (InterruptedException e)
+										{
+										}
+										return;
+									}
+
+									long totalNanoTimeToSleep = (long) totalSleepTimeMs * 1000000L;
+									long startNanoTime = System.nanoTime();
+									int sleepFor = Math.max(totalSleepTimeMs / 100, 5);
+									try
+									{
+										while (System.nanoTime() - startNanoTime < totalNanoTimeToSleep
+												&& !isCurrentCameraInNoDelayMode() && !abortThreads)
+											Thread.sleep(sleepFor);
+									}
+									catch (InterruptedException e)
+									{
+									}
+								}
+
+								private boolean isCurrentCameraInNoDelayMode()
+								{
+									return myInt == fullScreenedImageId.get()
+											&& (!BlueIrisViewer.bivSettings.instantReplayEnabled || BlueIrisViewer.images.instantReplayManager
+													.getCurrentTimeOffset() == 0);
 								}
 							}));
 
@@ -850,10 +985,10 @@ public class Images
 		screenHeight.set(h);
 		if (BlueIrisViewer.bivSettings != null)
 		{
-			double sqrt = Math.sqrt(imageURLs.size());
+			double sqrt = Math.sqrt(numCams);
 			cols = (int) Math.ceil(sqrt);
 			rows = (int) sqrt;
-			if (cols * rows < imageURLs.size())
+			if (cols * rows < numCams)
 				rows++;
 			HandleOverrideGridSize();
 			imageWidth = (float) w / cols;

@@ -2,7 +2,6 @@ package org.brian.blueirisviewer.util;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.brian.blueirisviewer.GameTime;

@@ -5,3 +5,4 @@
 /bin/.*
 /bin/
 \Q/BlueIrisViewer_Errors.old1.txt\E
+\Q/libturbojpeg.dll\E

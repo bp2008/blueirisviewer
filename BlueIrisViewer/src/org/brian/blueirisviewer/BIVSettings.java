@@ -17,7 +17,7 @@ public class BIVSettings extends SerializableObjectBase
 	public int startSizeH = 720;
 	public boolean borderless = false;
 	public boolean restartBorderlessToggle = false;
-	public int imageRefreshDelayMS = 250;
+	public int imageRefreshDelayMS = 450;
 	public boolean bOverrideGridLayout = false;
 	public int imageFillMode = 0; // 0: "Preserve Aspect Ratio", 1: "Stretch to Fill", 2: "Blue Iris Layout"
 	public boolean modalUI = true;
@@ -32,6 +32,7 @@ public class BIVSettings extends SerializableObjectBase
 	public boolean logErrorsToDisk = true;
 	public String windowTitle = "BlueIrisViewer";
 	public boolean useLibjpegTurbo = true;
+	public boolean useMjpegStream = true;
 	
 	public String[] getHiddenCamsStringArray()
 	{

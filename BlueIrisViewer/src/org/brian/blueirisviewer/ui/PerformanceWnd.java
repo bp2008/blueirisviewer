@@ -78,6 +78,11 @@ public class PerformanceWnd extends UIElement
 				BlueIrisViewer.bivSettings.Save();
 			}
 		});
+		sbImageResolutionMode.setDisabled(BlueIrisViewer.bivSettings.useMjpegStream);
+		if (BlueIrisViewer.bivSettings.useMjpegStream)
+			sbImageResolutionMode.setColor(0.5f, 0.5f, 0.5f, 1);
+		else
+			sbImageResolutionMode.setColor(1, 1, 1, 1);
 		table.add(sbImageResolutionMode).colspan(4).align(Align.center);
 		table.row();
 
@@ -161,10 +166,35 @@ public class PerformanceWnd extends UIElement
 		table.add().height(10);
 		table.row();
 
+		final CheckBox cbUseMjpeg = new CheckBox(
+				"  Use MJPEG video\n   - Images load faster\n   - Increases CPU usage\n   - Disables image resolution modes",
+				skin);
+		cbUseMjpeg.setChecked(BlueIrisViewer.bivSettings.useMjpegStream);
+		table.add(cbUseMjpeg).colspan(2).padBottom(10).align(Align.center);
+		table.row();
+
+		table.add().height(10);
+		table.row();
+		
+		cbUseMjpeg.addListener(new ChangeListener()
+		{
+			@Override
+			public void changed(ChangeEvent event, Actor actor)
+			{
+				BlueIrisViewer.bivSettings.useMjpegStream = cbUseMjpeg.isChecked();
+				BlueIrisViewer.bivSettings.Save();
+				sbImageResolutionMode.setDisabled(BlueIrisViewer.bivSettings.useMjpegStream);
+				if (BlueIrisViewer.bivSettings.useMjpegStream)
+					sbImageResolutionMode.setColor(0.5f, 0.5f, 0.5f, 1);
+				else
+					sbImageResolutionMode.setColor(1, 1, 1, 1);
+			}
+		});
+		
 		if (OSDetection.isWindows())
 		{
 			final CheckBox cbUseLibjpegTurbo = new CheckBox(
-					"  Use libjpeg-turbo for image decompression\n        (reduces CPU usage, but\n          increases memory usage)",
+					"  Use libjpeg-turbo for image decompression\n   - Reduces CPU usage\n   - Increases memory usage",
 					skin);
 			cbUseLibjpegTurbo.setChecked(BlueIrisViewer.bivSettings.useLibjpegTurbo);
 			table.add(cbUseLibjpegTurbo).colspan(2).padBottom(10).align(Align.center);

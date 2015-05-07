@@ -5,7 +5,6 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.DecimalFormat;
-import java.util.ArrayList;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -33,7 +32,7 @@ public class InstantReplayManager
 	int numCameras;
 	boolean abortThreads = false;
 	Vector<DownloadedJpeg> downloadedImages = new Vector<DownloadedJpeg>();
-	ArrayList<DownloadedJpeg> imagesToProcess = new ArrayList<DownloadedJpeg>();
+	Vector<DownloadedJpeg> imagesToProcess = new Vector<DownloadedJpeg>();
 	File cacheFile;
 	int historyLengthMs = 5 * 60 * 1000;
 	boolean enableInstantReplay = false;
@@ -86,10 +85,7 @@ public class InstantReplayManager
 								continue;
 							if (!enableInstantReplay || timeOffset.get() == 0)
 							{
-								synchronized (imagesToProcess)
-								{
-									imagesToProcess.set(i, dj);
-								}
+								imagesToProcess.set(i, dj);
 							}
 							downloadedImages.set(i, null);
 							if (!enableInstantReplay)
@@ -188,24 +184,22 @@ public class InstantReplayManager
 				try
 				{
 					in = new FileInputStream(cacheFile.getAbsolutePath());
-					long offset;
 					InstantReplayImage previouslyReadImage = null;
 					while (!abortThreads)
 					{
-						offset = timeOffset.get();
-						if (offset > 0)
+						if (timeOffset.get() > 0)
 						{
 							InstantReplayImage iri = masterList.GetNextChronologicalImage();
 							if (iri == null)
 							{
 								previouslyReadImage = null;
-								Sleep(10);
+								Sleep(5);
 								continue; // No image is available!
 							}
 
 							if (previouslyReadImage == iri)
 							{
-								Sleep(10);
+								Sleep(5);
 								continue; // This image is the same as last time!
 							}
 
@@ -218,11 +212,7 @@ public class InstantReplayManager
 								read += in.read(imageData, read, imageData.length - read);
 
 							// Now that the image is fully read, we need to send it to the image processing threads.
-							synchronized (imagesToProcess)
-							{
-								imagesToProcess
-										.set(iri.cameraId, new DownloadedJpeg(imageData, iri.cameraId, iri.time));
-							}
+							imagesToProcess.set(iri.cameraId, new DownloadedJpeg(imageData, iri.cameraId, iri.time));
 							if (abortThreads)
 								break;
 						}
@@ -266,13 +256,11 @@ public class InstantReplayManager
 					DownloadedJpeg dj;
 					while (!abortThreads)
 					{
-						synchronized (imagesToProcess)
-						{
-							dj = imagesToProcess.get(myInt);
-							imagesToProcess.set(myInt, null);
-						}
+						dj = imagesToProcess.get(myInt);
 						if (dj != null)
 						{
+							imagesToProcess.set(myInt, null);
+
 							Pixmap pm = Images.Get(dj.data);
 
 							if (abortThreads)
@@ -288,15 +276,14 @@ public class InstantReplayManager
 								BlueIrisViewer.images.downloadedTextures.add(dt);
 							}
 						}
-						if (abortThreads)
-							break;
-						try
-						{
-							Thread.sleep(10);
-						}
-						catch (InterruptedException e)
-						{
-						}
+						if (!abortThreads)
+							try
+							{
+								Thread.sleep(5);
+							}
+							catch (InterruptedException e)
+							{
+							}
 					}
 				}
 			}));
@@ -329,6 +316,12 @@ public class InstantReplayManager
 		masterList.SetTimeOffset((int) (value * historyLengthMs));
 	}
 
+	/**
+	 * Returns true if this instant replay manager is busy with an image from the camera at this index.
+	 * 
+	 * @param i
+	 * @return
+	 */
 	public boolean IsProcessingLiveCamera(int i)
 	{
 		if (i < numCameras)
@@ -336,11 +329,8 @@ public class InstantReplayManager
 			if (downloadedImages.get(i) != null)
 				return true;
 			else if (timeOffset.get() == 0)
-				synchronized (imagesToProcess)
-				{
-					if (imagesToProcess.get(i) != null)
-						return true;
-				}
+				if (imagesToProcess.get(i) != null)
+					return true;
 		}
 		return false;
 	}
@@ -352,11 +342,8 @@ public class InstantReplayManager
 		if (i < numCameras)
 		{
 			if (timeOffset.get() > 0)
-				synchronized (imagesToProcess)
-				{
-					if (imagesToProcess.get(i) != null)
-						return true;
-				}
+				if (imagesToProcess.get(i) != null)
+					return true;
 		}
 		return false;
 	}
