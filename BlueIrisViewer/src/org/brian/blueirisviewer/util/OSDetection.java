@@ -12,6 +12,8 @@ public class OSDetection
 		if(arch.contains("64"))
 			return true;
 		return false;
+		// Alternative method:
+		// return "64".equals(System.getProperty("sun.arch.data.model"))
 	}
 	
 	public static boolean isWindows()

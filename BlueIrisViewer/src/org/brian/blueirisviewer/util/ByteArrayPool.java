@@ -23,19 +23,48 @@ public class ByteArrayPool
 	 */
 	public static byte[] getArray(int size)
 	{
+		// We will reset the pool every 5 seconds so that no-longer-used byte array sizes get deleted.
 		long currentGeneration = generationCounter.get();
 		long newGeneration = GameTime.getRealTime() / 5000;
 		if (currentGeneration < newGeneration)
 		{
+			// This is reached every 5 seconds by one or more threads.
 			if (generationCounter.compareAndSet(currentGeneration, newGeneration))
 			{
-				// Cycle the pools; create a new one and delete all byte arrays found in the oldest.
+				// This is reached by precisely one thread every 5 seconds.
+				//
+				// Now we cycle the pools.  This is a little bit complex, so an explanation follows.
+				//
+				// Initially, there was just one pool of byte arrays.  But some byte array sizes stop being used during normal operation of the program.
+				// -- Most notably when the window is resized while one of the image-scaling efficiency modes is enabled. --
+				// The result is that memory usage could increase needlessly as unneeded byte array sizes were kept pooled forever.
+				//
+				// So I devised a system which would efficiently delete byte arrays that are no longer in use while remaining lock-free and thread-safe.
+				//
+				// Now, we always keep references to two pools.  One is older (previousArrayPool), and one is newer (arrayPool).  When a byte array is 
+				// requested by outside code, we first try to get it from previousArrayPool.  If that fails, we try to get a byte array from arrayPool.  
+				// If that fails also, we construct a new byte array and return it.  Regardless, when outside code is finished with a byte array, the 
+				// byte array is sent back here where it is inserted into arrayPool for future use.
+				//
+				// The effect is that previousArrayPool quickly empties out of all the popular byte array sizes and is never replenished. But it may 
+				// still contain byte arrays of sizes that are no longer in demand.  We might as well allow these byte arrays to be garbage collected.
+				//
+				// So every 5 seconds, we remove all remaining byte arrays from previousArrayPool and dereference the pool.  This frees up memory that 
+				// would otherwise be wasted by byte arrays and byte array queues that aren't being used anymore.
+				//
+				// Around this time, arrayPool is the only pool containing any byte arrays.  It becomes the new previousArrayPool, while a new pool is
+				// constructed to take the role of arrayPool.  The entire cycle now repeats.  Byte arrays from previousArrayPool gradually make their 
+				// way to arrayPool, then unused byte arrays are again purged from previousArrayPool and the cycle repeats again endlessly.
+				//
+				// Accidents can happen due to the asynchronous nature of this program, but the worst case scenario is that some byte arrays are created
+				// or deleted unnecessarily, incurring a slight efficiency penalty.
 				ConcurrentHashMap<Integer, ConcurrentLinkedQueue<byte[]>> retiringPool = previousArrayPool;
 				previousArrayPool = arrayPool;
 				arrayPool = new ConcurrentHashMap<Integer, ConcurrentLinkedQueue<byte[]>>();
 				cleanup(retiringPool);
 			}
 		}
+		// Get an array from the older pool first.
 		ConcurrentLinkedQueue<byte[]> q = previousArrayPool.get(size);
 		if (q != null)
 		{
@@ -46,6 +75,7 @@ public class ByteArrayPool
 				return b;
 			}
 		}
+		// No luck.  Now try the newer pool.
 		q = arrayPool.get(size);
 		if (q != null)
 		{
@@ -56,6 +86,8 @@ public class ByteArrayPool
 				return b;
 			}
 		}
+		// The newer pool didn't have any arrays of the size we want.
+		// So we will construct one.
 		return new byte[size];
 	}
 

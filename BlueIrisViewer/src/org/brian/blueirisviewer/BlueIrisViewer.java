@@ -6,6 +6,7 @@ import org.brian.blueirisviewer.ui.UI;
 import org.brian.blueirisviewer.ui.WindowOptionsWnd;
 import org.brian.blueirisviewer.util.IntPoint;
 import org.brian.blueirisviewer.util.IntRectangle;
+import org.brian.blueirisviewer.util.NightModeManager;
 import org.brian.blueirisviewer.util.Utilities;
 import org.brian.blueirisviewer.util.WindowHelper;
 
@@ -43,6 +44,7 @@ public class BlueIrisViewer implements ApplicationListener
 	public static Images images;
 	public static UI ui;
 	public static BIVSettings bivSettings;
+	public static NightModeManager nightModeManager;
 
 	private long lastResize = 0;
 	private long lastHandledResize = 0;
@@ -54,6 +56,7 @@ public class BlueIrisViewer implements ApplicationListener
 	public static Texture texLightGray, texDarkGreen, texDarkGray, texRed;
 
 	public static boolean bLibjpegTurboAvailable = false;
+	public static String sScreenBrightnessProgramPath = null;
 
 	public BlueIrisViewer(WindowHelper windowHelper)
 	{
@@ -77,6 +80,8 @@ public class BlueIrisViewer implements ApplicationListener
 
 		batch = new SpriteBatch();
 
+		nightModeManager = new NightModeManager();
+		
 		Gdx.input.setInputProcessor(myInputProcessor);
 
 		ui = new UI();
@@ -139,6 +144,8 @@ public class BlueIrisViewer implements ApplicationListener
 			if (windowHelper != null)
 				windowHelper.SetWindowRectangle(windowHelper.GetWindowRectangle());
 		}
+		
+		nightModeManager.update();
 
 		Gdx.gl.glClearColor(0, 0, 0, 1);
 		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);

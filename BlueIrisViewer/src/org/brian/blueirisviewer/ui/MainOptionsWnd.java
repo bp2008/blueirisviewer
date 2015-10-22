@@ -48,6 +48,11 @@ public class MainOptionsWnd extends UIElement
 		table.add().height(10);
 		table.row();
 
+		AddWindowButton(new NightModeWnd(skin), "Night Mode", skin, table);
+
+		table.add().height(10);
+		table.row();
+
 		AddWindowButton(new AboutWnd(skin), "About", skin, table);
 
 		table.add().height(20);

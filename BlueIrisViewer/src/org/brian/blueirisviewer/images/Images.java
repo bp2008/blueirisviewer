@@ -193,7 +193,7 @@ public class Images
 								{
 									return;
 								}
-								Utilities.sessionCookie = (String) responseObj.get("session");;
+								Utilities.sessionCookie = (String) responseObj.get("session");
 								serverRequiresAuthentication = false;
 							}
 							camlistObj.put("session", Utilities.sessionCookie);
@@ -393,6 +393,8 @@ public class Images
 									{
 										HttpHelper httpHelper = new HttpHelper(mjpegUrl);
 										InputStream inStream = httpHelper.GET();
+										if (inStream == null)
+											return;
 										try
 										{
 											while (!abortThreads && BlueIrisViewer.bivSettings.useMjpegStream)
@@ -668,6 +670,31 @@ public class Images
 
 	public static Pixmap Get(byte[] img)
 	{
+		PixelManipulator pm;
+		int pixelManipulationMode;
+		if (BlueIrisViewer.nightModeManager.isNightModeNow())
+			pixelManipulationMode = BlueIrisViewer.bivSettings.pixelManipulationNightMode;
+		else
+			pixelManipulationMode = BlueIrisViewer.bivSettings.pixelManipulationDayMode;
+		switch (pixelManipulationMode)
+		{
+			case 1:
+				pm = PixelManipulator.KeepRedDropOtherChannels();
+				break;
+			case 2:
+				pm = PixelManipulator.MakeRedBrightestChannel();
+				break;
+			case 3:
+				pm = PixelManipulator.MakeRedAverageBrightness();
+				break;
+			default:
+				pm = PixelManipulator.DoNothing();
+		}
+		return Get(img, pm);
+	}
+
+	public static Pixmap Get(byte[] img, PixelManipulator pixelManipulator)
+	{
 		if (img.length > 0)
 			try
 			{
@@ -684,6 +711,7 @@ public class Images
 						int pixelSize = TJ.getPixelSize(TJ.PF_RGB);
 						byte[] rgbData = ByteArrayPool.getArray(w * h * pixelSize);
 						tjd.decompress(rgbData, 0, 0, w, w * pixelSize, h, TJ.PF_RGB, 0);
+						pixelManipulator.OperateOnRGB(rgbData);
 						bb.put(rgbData);
 						ByteArrayPool.returnArrayToPool(rgbData);
 						bb.rewind();

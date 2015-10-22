@@ -32,7 +32,16 @@ public class BIVSettings extends SerializableObjectBase
 	public boolean logErrorsToDisk = true;
 	public String windowTitle = "BlueIrisViewer";
 	public boolean useLibjpegTurbo = true;
-	public boolean useMjpegStream = true;
+	public boolean useMjpegStream = false;
+	public boolean nightModeEnabled = false;
+	public String nightModeStartTime = "20:00";
+	public String nightModeEndTime = "8:00";
+	public boolean setDayModeBrightness = false;
+	public boolean setNightModeBrightness = false;
+	public int dayModeBrightness = 100;
+	public int nightModeBrightness = 10;
+	public int pixelManipulationDayMode = 0; // 0: "Normal", 1: "Red 1", 2: "Red 2", 3: "Red 3"
+	public int pixelManipulationNightMode = 3; 
 	
 	public String[] getHiddenCamsStringArray()
 	{

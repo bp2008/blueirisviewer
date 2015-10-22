@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.IOException;
 
 import org.brian.blueirisviewer.util.Logger;
+import org.brian.blueirisviewer.util.OSDetection;
 import org.brian.blueirisviewer.util.SerializableObjectBase;
 
 import com.badlogic.gdx.LifecycleListener;
@@ -20,20 +21,38 @@ public class Main
 
 	public static void main(String[] args)
 	{
-		try
+		if (OSDetection.isWindows())
 		{
-			NativeUtils.loadLibraryFromJar("/libturbojpeg32.dll","/libturbojpeg64.dll","libturbojpeg.dll");
+			try
+			{
+				if (OSDetection.is64Bit())
+					BlueIrisViewer.bLibjpegTurboAvailable = NativeUtils.extractFileFromJar("/libturbojpeg64.dll",
+							"libturbojpeg.dll");
+				else
+					BlueIrisViewer.bLibjpegTurboAvailable = NativeUtils.extractFileFromJar("/libturbojpeg32.dll",
+							"libturbojpeg.dll");
+			}
+			catch (IOException e)
+			{
+				e.printStackTrace();
+			}
+
+			try
+			{
+				if (NativeUtils.extractFileFromJar("/ScreenBrightness.exe", "ScreenBrightness.exe"))
+					BlueIrisViewer.sScreenBrightnessProgramPath = "ScreenBrightness.exe";
+			}
+			catch (IOException e)
+			{
+				e.printStackTrace();
+			}
 		}
-		catch (IOException e)
-		{
-			e.printStackTrace();
-		}
-		
+
 		SerializableObjectBase.SetSerializer(new XStreamSerializer());
 
 		BIVSettings bivSettings = new BIVSettings();
 		bivSettings.Load();
-		
+
 		if (bivSettings.borderless)
 			System.setProperty("org.lwjgl.opengl.Window.undecorated", "true");
 
@@ -49,31 +68,31 @@ public class Main
 			// Ensure the stored position is on-screen
 			int centerX = bivSettings.startPositionX + (bivSettings.startSizeW / 2);
 			int centerY = bivSettings.startPositionY + (bivSettings.startSizeH / 2);
-			
+
 			GraphicsEnvironment env = GraphicsEnvironment.getLocalGraphicsEnvironment();
 			GraphicsDevice[] allScreens = env.getScreenDevices();
-			
+
 			boolean positionIsOnScreen = false;
 			Rectangle firstScreen = null;
 			for (int i = 0; i < allScreens.length; i++)
 			{
 				Rectangle screen = allScreens[i].getDefaultConfiguration().getBounds();
-				if(firstScreen == null)
+				if (firstScreen == null)
 					firstScreen = screen;
-				if(screen.contains(centerX, centerY))
+				if (screen.contains(centerX, centerY))
 				{
 					positionIsOnScreen = true;
 					break;
 				}
 			}
-			if(!positionIsOnScreen && firstScreen != null)
+			if (!positionIsOnScreen && firstScreen != null)
 			{
 				bivSettings.startPositionX = firstScreen.x + 20;
 				bivSettings.startPositionY = firstScreen.y + 20;
 				bivSettings.startSizeW = firstScreen.width - 100;
 				bivSettings.startSizeH = firstScreen.height - 150;
 			}
-			
+
 			cfg.x = bivSettings.startPositionX;
 			cfg.y = bivSettings.startPositionY;
 			cfg.width = bivSettings.startSizeW;
