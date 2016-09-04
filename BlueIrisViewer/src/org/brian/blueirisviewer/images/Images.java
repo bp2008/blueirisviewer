@@ -195,11 +195,12 @@ public class Images
 								}
 								Utilities.sessionCookie = (String) responseObj.get("session");
 								serverRequiresAuthentication = false;
+								
+								camlistObj.put("session", Utilities.sessionCookie);
+								responseStr = Utilities.getStringViaHttpConnection(processedServerURL + "json",
+										new PostData(camlistObj));
+								responseObj = (JSONObject) jsonParser.parse(responseStr);
 							}
-							camlistObj.put("session", Utilities.sessionCookie);
-							responseStr = Utilities.getStringViaHttpConnection(processedServerURL + "json",
-									new PostData(camlistObj));
-							responseObj = (JSONObject) jsonParser.parse(responseStr);
 
 							if (isFailResponse(responseObj))
 								return;
@@ -284,16 +285,47 @@ public class Images
 										}
 										else
 										{
+											String name = (String) camDef.get("optionValue");
+											int width = (int) ((Long) camDef.get("width")).longValue();
+											int height = (int) ((Long) camDef.get("height")).longValue();
+											
+											if (allCameraNames.size() == 0)
+											{
+												// If we get here, there is no group defined. We should show only the first camera.
+												mainImageWidth = width;
+												mainImageHeight = height;
+												allCameraNames.add(name);
+												if (!SettingsSayToHideCamera(name))
+												{
+													numCams++;
+													allCameraVisibility.add(true);
+													cameraNames.add(name);
+													cameraResolutions.add(new IntPoint(10, 10));
+													sleepDelays.add(250); // Note: This delay is not used
+													rotateDegrees.add(0);
+													int left = 0;
+													int top = 0;
+													int right = width;
+													int bottom = height;
+													float x = (float) left / (float) mainImageWidth;
+													float y = (float) ((mainImageHeight - top) - (bottom - top))
+															/ (float) mainImageHeight;
+													float w = (float) (right - left) / (float) mainImageWidth;
+													float h = (float) (bottom - top) / (float) mainImageHeight;
+													blueIrisRectsProportional.addElement(new Rectangle(x, y, w, h));
+													blueIrisRectsPrecalc.addElement(new Rectangle(x, y, w, h));
+												}
+												else
+													allCameraVisibility.add(false);
+											}
+											
 											if (allCameraNames.size() > 0)
 											{
 												// This is a normal camera appearing after the first group.
 												// Record the image dimensions.
-												String name = (String) camDef.get("optionValue");
 												int idx = cameraNames.indexOf(name);
 												if (idx > -1)
 												{
-													int width = (int) ((Long) camDef.get("width")).longValue();
-													int height = (int) ((Long) camDef.get("height")).longValue();
 													cameraResolutions.set(idx, new IntPoint(width, height));
 													totalRawImageBytes += width * height * 3;
 												}
@@ -643,7 +675,7 @@ public class Images
 				else
 					sb.append("http://");
 
-				sb.append(serverURL);
+				sb.append(serverURL.trim());
 
 				if (!serverURL.endsWith("/"))
 					sb.append("/");
