@@ -19,6 +19,7 @@ import org.brian.blueirisviewer.util.IntPoint;
 import org.brian.blueirisviewer.util.IntRunnable;
 import org.brian.blueirisviewer.util.Logger;
 import org.brian.blueirisviewer.util.PostData;
+import org.brian.blueirisviewer.util.ReAuthenticateException;
 import org.brian.blueirisviewer.util.Utilities;
 import org.brian.blueirisviewer.util.string;
 import org.json.simple.JSONArray;
@@ -67,6 +68,9 @@ public class Images
 	int cols = 1;
 	int rows = 1;
 	long connectedAtTime = 0;
+	long sessionLostTime = 0;
+	boolean isHandlingSessionFailure = false;
+	Object sessionFailureLock = new Object();
 
 	public int numCams = 0;
 	public int totalRawImageBytes = 0;
@@ -125,11 +129,6 @@ public class Images
 
 	public void Initialize()
 	{
-		Initialize(false);
-	}
-
-	private void Initialize(final boolean isAuthenticationRetry)
-	{
 		if (isInitialized || isInitializing)
 			return;
 		Thread thrStart = new Thread(new Runnable()
@@ -141,8 +140,7 @@ public class Images
 					return;
 				synchronized (Images.this)
 				{
-					if (!isAuthenticationRetry)
-						Utilities.sessionCookie = "";
+					Utilities.sessionCookie = "";
 					if (isInitialized || isInitializing)
 						return;
 					try
@@ -166,36 +164,10 @@ public class Images
 								// Must log in
 								serverRequiresAuthentication = true;
 
-								JSONObject loginObj = new JSONObject();
-								loginObj.put("cmd", "login");
-								responseStr = Utilities.getStringViaHttpConnection(processedServerURL + "json",
-										new PostData(loginObj));
-								responseObj = (JSONObject) jsonParser.parse(responseStr);
-								Utilities.sessionCookie = (String) responseObj.get("session");
-								loginObj.put("session", Utilities.sessionCookie);
-								String pwDecrypted = string.IsNullOrEmpty(BlueIrisViewer.bivSettings.password) ? ""
-										: Encryption.Decrypt(BlueIrisViewer.bivSettings.password);
-								if (pwDecrypted.equals(BlueIrisViewer.bivSettings.password)
-										&& !string.IsNullOrEmpty(BlueIrisViewer.bivSettings.password))
-								{
-									BlueIrisViewer.bivSettings.password = Encryption.Encrypt(pwDecrypted);
-									BlueIrisViewer.bivSettings.Save();
-								}
-								loginObj.put(
-										"response",
-										Utilities.Hex_MD5(BlueIrisViewer.bivSettings.username + ":"
-												+ Utilities.sessionCookie + ":" + pwDecrypted));
-								responseStr = Utilities.getStringViaHttpConnection(processedServerURL + "json",
-										new PostData(loginObj));
-								responseObj = (JSONObject) jsonParser.parse(responseStr);
-
-								if (isFailResponse(responseObj))
-								{
+								if (!TryLogin())
 									return;
-								}
-								Utilities.sessionCookie = (String) responseObj.get("session");
 								serverRequiresAuthentication = false;
-								
+
 								camlistObj.put("session", Utilities.sessionCookie);
 								responseStr = Utilities.getStringViaHttpConnection(processedServerURL + "json",
 										new PostData(camlistObj));
@@ -204,29 +176,6 @@ public class Images
 
 							if (isFailResponse(responseObj))
 								return;
-
-							// String page = Utilities.getStringViaHttpConnection(processedServerURL + "jpegpull.htm");
-							//
-							// if (page.contains("<title>Blue Iris Login</title>"))
-							// {
-							// // Page is login page
-							// if (isAuthenticationRetry)
-							// return;
-							// serverRequiresAuthentication = true;
-							// HandleLogin(processedServerURL);
-							// isInitializing = false;
-							// Initialize(true);
-							// return;
-							// }
-							// else
-							// {
-							// serverRequiresAuthentication = false;
-							// if (string.IsNullOrEmpty(page))
-							// return; // Page is empty!
-							// }
-							// No going back beyond this point.
-
-							// Assume page is jpegpull as requested.
 
 							// Precalculate what we can about where to draw images
 							synchronized (BlueIrisViewer.getResizeLock())
@@ -372,18 +321,45 @@ public class Images
 									String jpegUrl = processedServerURL + "image/" + cameraNames.get(myInt);
 									while (!abortThreads)
 									{
-										if (BlueIrisViewer.bivSettings.useMjpegStream)
+										try
 										{
-											HandleThrottledMjpegStreaming();
+											if (BlueIrisViewer.bivSettings.useMjpegStream)
+											{
+												HandleThrottledMjpegStreaming();
+											}
+											else
+											{
+												HandleRefreshingJpegStreaming(jpegUrl);
+											}
 										}
-										else
+										catch (ReAuthenticateException ex)
 										{
-											HandleRefreshingJpegStreaming(jpegUrl);
+											synchronized (sessionFailureLock)
+											{
+												if (!isHandlingSessionFailure && !abortThreads
+														&& Math.abs(sessionLostTime - GameTime.getRealTime()) > 10000)
+												{
+													isHandlingSessionFailure = true;
+													if (ex != null)
+														Logger.debug("Blue Iris session lost", Images.class);
+													if (!TryLogin())
+													{
+														abortThreads = true;
+														serverRequiresAuthentication = true;
+														sessionLostTime = GameTime.getRealTime();
+														isHandlingSessionFailure = false;
+														return;
+													}
+													sessionLostTime = GameTime.getRealTime();
+													isHandlingSessionFailure = false;
+												}
+											}
 										}
 									}
 								}
 
 								public void HandleRefreshingJpegStreaming(String jpegUrl)
+										throws ReAuthenticateException
 								{
 									int sleepFor = BlueIrisViewer.bivSettings.imageRefreshDelayMS;
 
@@ -569,6 +545,49 @@ public class Images
 				}
 			}
 
+			@SuppressWarnings("unchecked")
+			private boolean TryLogin()
+			{
+				try
+				{
+					JSONObject loginObj = new JSONObject();
+					loginObj.put("cmd", "login");
+					String responseStr = Utilities.getStringViaHttpConnection(processedServerURL + "json",
+							new PostData(loginObj));
+					JSONParser jsonParser = new JSONParser();
+					JSONObject responseObj = (JSONObject) jsonParser.parse(responseStr);
+					Utilities.sessionCookie = (String) responseObj.get("session");
+					loginObj.put("session", Utilities.sessionCookie);
+					String pwDecrypted = string.IsNullOrEmpty(BlueIrisViewer.bivSettings.password) ? "" : Encryption
+							.Decrypt(BlueIrisViewer.bivSettings.password);
+					if (pwDecrypted.equals(BlueIrisViewer.bivSettings.password)
+							&& !string.IsNullOrEmpty(BlueIrisViewer.bivSettings.password))
+					{
+						BlueIrisViewer.bivSettings.password = Encryption.Encrypt(pwDecrypted);
+						BlueIrisViewer.bivSettings.Save();
+					}
+					loginObj.put(
+							"response",
+							Utilities.Hex_MD5(BlueIrisViewer.bivSettings.username + ":" + Utilities.sessionCookie + ":"
+									+ pwDecrypted));
+					responseStr = Utilities.getStringViaHttpConnection(processedServerURL + "json", new PostData(
+							loginObj));
+					responseObj = (JSONObject) jsonParser.parse(responseStr);
+
+					if (isFailResponse(responseObj))
+					{
+						return false;
+					}
+					Utilities.sessionCookie = (String) responseObj.get("session");
+					return true;
+				}
+				catch (ParseException ex)
+				{
+					Logger.debug(ex, this);
+					return false;
+				}
+			}
+
 			private boolean isFailResponse(JSONObject responseObj)
 			{
 				return responseObj == null
@@ -686,19 +705,19 @@ public class Images
 		thrStart.start();
 	}
 
-	public static Pixmap Get(String url)
-	{
-		byte[] img = Utilities.getViaHttpConnection(url, null);
-		if (img.length > 0)
-			try
-			{
-				return new Pixmap(img, 0, img.length);
-			}
-			catch (Exception ex)
-			{
-			}
-		return null;
-	}
+	// public static Pixmap Get(String url)
+	// {
+	// byte[] img = Utilities.getViaHttpConnection(url, null);
+	// if (img.length > 0)
+	// try
+	// {
+	// return new Pixmap(img, 0, img.length);
+	// }
+	// catch (Exception ex)
+	// {
+	// }
+	// return null;
+	// }
 
 	public static Pixmap Get(byte[] img)
 	{
@@ -832,6 +851,22 @@ public class Images
 				hasAutoOpenedServerSetup = true;
 				BlueIrisViewer.ui.openWindow(ServerSetupWnd.class);
 			}
+		}
+		else if (isHandlingSessionFailure)
+		{
+			BlueIrisViewer.ui.DrawText(batch, "Session Lost. Attempting to reauthenticate.", 10,
+					BlueIrisViewer.fScreenHeight - 15);
+			BlueIrisViewer.ui.DrawText(batch,
+					"If you need to change the server options, press 'o' to open the options.", 10,
+					BlueIrisViewer.fScreenHeight - 35);
+		}
+		else if (serverRequiresAuthentication)
+		{
+			BlueIrisViewer.ui.DrawText(batch, "Unable to reauthenticate with configured user name and password.", 10,
+					BlueIrisViewer.fScreenHeight - 15);
+			BlueIrisViewer.ui.DrawText(batch,
+					"If you need to change the server options, press 'o' to open the options.", 10,
+					BlueIrisViewer.fScreenHeight - 35);
 		}
 		else if (textures.size() == 0)
 		{

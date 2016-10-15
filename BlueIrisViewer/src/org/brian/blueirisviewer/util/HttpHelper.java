@@ -29,7 +29,7 @@ public class HttpHelper
 	 * 
 	 * @return The HTTP input stream, or null if the connection failed.
 	 */
-	public InputStream GET()
+	public InputStream GET() throws ReAuthenticateException
 	{
 		if (sUrl == null || sUrl.equals(""))
 			return null;
@@ -99,7 +99,21 @@ public class HttpHelper
 			}
 			catch (java.io.IOException ex)
 			{
-				throw ex;
+				if (ex.getMessage().contains("HTTP response code: 401") || con.getResponseCode() == 401)
+					throw new ReAuthenticateException();
+				else
+					throw ex;
+			}
+			int responseCode = con.getResponseCode();
+			if (responseCode == 200)
+			{
+				// All is fine
+			}
+			else if (responseCode == 301 || responseCode == 302 || responseCode == 303 || responseCode == 307
+					|| responseCode == 308)
+			{
+				// Is redirect response
+				throw new ReAuthenticateException();
 			}
 			String enc = con.getContentEncoding();
 
@@ -108,6 +122,10 @@ public class HttpHelper
 				in = new GZIPInputStream(inStream);
 
 			return in;
+		}
+		catch (ReAuthenticateException ex)
+		{
+			throw ex;
 		}
 		catch (Exception ex)
 		{

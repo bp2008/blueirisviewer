@@ -379,6 +379,10 @@ public class InstantReplayManager
 					40);
 			BlueIrisViewer.ui.DrawText(batch, GetTimeInConvenientUnit(timeOffset.get()) + " delay", 30, 30);
 		}
+		else if (displayHistoryPercentageSelected != 0)
+		{
+			BlueIrisViewer.ui.DrawText(batch, GetTimeInConvenientUnit(timeOffset.get()) + " delay", 30, 30);
+		}
 	}
 
 	DecimalFormat twoPlacePrecision = new DecimalFormat("#.##");

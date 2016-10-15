@@ -32,8 +32,6 @@ import javax.net.ssl.SSLSession;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
-import org.brian.blueirisviewer.BlueIrisViewer;
-
 public class Utilities
 {
 	public static String sessionCookie = null;
@@ -54,10 +52,11 @@ public class Utilities
 	 *            Data to POST. If null, the request will be a GET request with no payload instead.
 	 * @return
 	 */
-	public static byte[] getViaHttpConnection(String sUrl, PostData postData)
+	public static byte[] getViaHttpConnection(String sUrl, PostData postData) throws ReAuthenticateException
 	{
 		return getViaHttpConnection(sUrl, postData, null, null);
 	}
+
 	/**
 	 * Gets a byte[] of data from the specified URL using POST or GET as determined by the arguments.
 	 * 
@@ -68,6 +67,7 @@ public class Utilities
 	 * @return
 	 */
 	private static byte[] getViaHttpConnection(String sUrl, PostData postData, String user, String pass)
+			throws ReAuthenticateException
 	{
 		if (sUrl == null || sUrl.equals(""))
 			return new byte[0];
@@ -122,11 +122,12 @@ public class Utilities
 					Logger.debug(ex, Utilities.class);
 				}
 			}
+			con.setInstanceFollowRedirects(false);
 			con.setConnectTimeout(10000);
 			con.setReadTimeout(30000);
 			con.setRequestProperty("User-Agent", "BlueIrisViewer");
 			con.setRequestProperty("Accept-Encoding", "gzip");
-			
+
 			if (postData != null)
 			{
 				con.setDoOutput(true);
@@ -145,12 +146,12 @@ public class Utilities
 					con.setRequestProperty("Cookie", "session=" + sCookie);
 			}
 
-			if(user != null && pass != null)
+			if (user != null && pass != null)
 			{
 				String encoded = Base64.encodeToString((user + ":" + pass).getBytes("UTF-8"), false);
 				con.setRequestProperty("Authorization", "Basic " + encoded);
 			}
-			
+
 			InputStream inStream = null;
 			try
 			{
@@ -158,11 +159,21 @@ public class Utilities
 			}
 			catch (java.io.IOException ex)
 			{
-				if (user == null && pass == null && ex.getMessage().contains("HTTP response code: 401"))
-					return getViaHttpConnection(sUrl, postData, BlueIrisViewer.bivSettings.username, Encryption
-							.Decrypt(BlueIrisViewer.bivSettings.password));
+				if (ex.getMessage().contains("HTTP response code: 401") || con.getResponseCode() == 401)
+					throw new ReAuthenticateException();
 				else
 					throw ex;
+			}
+			int responseCode = con.getResponseCode();
+			if (responseCode == 200)
+			{
+				// All is fine
+			}
+			else if (responseCode == 301 || responseCode == 302 || responseCode == 303 || responseCode == 307
+					|| responseCode == 308)
+			{
+				// Is redirect response
+				throw new ReAuthenticateException();
 			}
 			String enc = con.getContentEncoding();
 
@@ -201,6 +212,10 @@ public class Utilities
 				}
 			}
 		}
+		catch (ReAuthenticateException ex)
+		{
+			throw ex;
+		}
 		catch (Exception ex)
 		{
 			Logger.debug(ex, Utilities.class, "URL: " + sUrl);
@@ -235,9 +250,19 @@ public class Utilities
 	{
 		return getStringViaHttpConnection(sUrl, null);
 	}
+
 	public static String getStringViaHttpConnection(String sUrl, PostData postData)
 	{
-		byte[] bytes = getViaHttpConnection(sUrl, postData);
+		byte[] bytes;
+		try
+		{
+			bytes = getViaHttpConnection(sUrl, postData);
+		}
+		catch (ReAuthenticateException ex)
+		{
+			Logger.debug(ex, Utilities.class);
+			bytes = new byte[0];
+		}
 		return Utilities.ToString(bytes);
 	}
 
