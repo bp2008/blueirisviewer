@@ -18,6 +18,8 @@ Download from the releases section, then extract and run the .jar file.  If doub
 
 https://github.com/bp2008/blueirisviewer/releases
 
+## Forum Thread
+
 For more information, check the discussion thread on IP Cam Talk:
 
 http://www.ipcamtalk.com/showthread.php?191-Standalone-Java-app-for-dedicated-live-view-with-Instant-Replay
