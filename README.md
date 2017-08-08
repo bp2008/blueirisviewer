@@ -14,7 +14,7 @@ BlueIrisViewer's most unique feature is Instant Replay.  This allows you to quic
 
 ## Installation
 
-Download from the releases section, then extract and run the .jar file.  If double-clicking the .jar file does not work, you will need to run it with the command `java -jar BlueIrisViewer.jar`.
+Download from the releases section, then extract and run the .jar file.  If double-clicking the .jar file does not work, you will need to run it with the command `java -jar BlueIrisViewer.jar`.  If that fails, install java on your system!
 
 https://github.com/bp2008/blueirisviewer/releases
 
