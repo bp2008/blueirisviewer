@@ -221,6 +221,13 @@ public class BlueIrisViewer implements ApplicationListener
 		@Override
 		public boolean keyDown(int keycode)
 		{
+			if (keycode == 254)
+			{
+				BlueIrisViewer.bivSettings.borderless = !BlueIrisViewer.bivSettings.borderless;
+				BlueIrisViewer.windowHelper.SetWindowBorderless(BlueIrisViewer.bivSettings.borderless);
+				BlueIrisViewer.bivSettings.Save();
+				return true;
+			}
 			return ui.stage.keyDown(keycode);
 		}
 
