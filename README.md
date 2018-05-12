@@ -24,3 +24,8 @@ For more information, check the discussion thread on IP Cam Talk:
 
 http://www.ipcamtalk.com/showthread.php?191-Standalone-Java-app-for-dedicated-live-view-with-Instant-Replay
 
+## Building From Source
+
+BlueIrisViewer was created when Eclipse was the IDE of choice for libGDX and Android development.  This is no longer the case, and getting a new development environment up and running to build this project is no longer easy.  I use an old Eclipse 4.4 installation I've had for years.  Hint: Don't try to build the BlueIrisViewer-html project -- it doesn't work.
+
+I spent a few hours trying to upgrade this project to the latest libGDX library and Android Studio, but it was one problem after another.  Endless compatibility issues between Android Studio, the libGDX framework, and gradle, not to mention several new bugs caused by platform/framework changes over the years.  At this point, I am unable to offer help to people interested in building BlueIrisViewer from source.
