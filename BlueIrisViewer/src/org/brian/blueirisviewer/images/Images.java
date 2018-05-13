@@ -6,6 +6,7 @@ import java.nio.ByteBuffer;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 
 import org.brian.blueirisviewer.BlueIrisViewer;
@@ -69,6 +70,7 @@ public class Images
 	int rows = 1;
 	long connectedAtTime = 0;
 	long sessionLostTime = 0;
+	AtomicLong lastFrameTime = new AtomicLong();
 	boolean isHandlingSessionFailure = false;
 	Object sessionFailureLock = new Object();
 
@@ -81,6 +83,11 @@ public class Images
 
 	public InstantReplayManager instantReplayManager;
 
+	public long getLastFrameTime()
+	{
+		return lastFrameTime.get();
+	}
+	
 	public int getRowCount()
 	{
 		return rows;
@@ -378,7 +385,10 @@ public class Images
 										if (abortThreads)
 											return;
 										else if (img.length > 0)
+										{
 											instantReplayManager.LiveImageReceived(myInt, img);
+											lastFrameTime.set(GameTime.getGameTime());
+										}
 										if (!BlueIrisViewer.bivSettings.instantReplayEnabled
 												|| BlueIrisViewer.images.instantReplayManager.getCurrentTimeOffset() == 0)
 										{
@@ -454,6 +464,7 @@ public class Images
 															break;
 													}
 													instantReplayManager.LiveImageReceived(myInt, jpegBuffer);
+													lastFrameTime.set(GameTime.getGameTime());
 												}
 												int sleepFor = BlueIrisViewer.bivSettings.imageRefreshDelayMS;
 												// If we get here, we just submitted an image

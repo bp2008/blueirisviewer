@@ -41,7 +41,12 @@ public class BIVSettings extends SerializableObjectBase
 	public int dayModeBrightness = 100;
 	public int nightModeBrightness = 10;
 	public int pixelManipulationDayMode = 0; // 0: "Normal", 1: "Red 1", 2: "Red 2", 3: "Red 3"
-	public int pixelManipulationNightMode = 3; 
+	public int pixelManipulationNightMode = 3;
+	public int freezeDetectionAnimation = 0;
+	public int freezeDetectionAnimationSpeed = 50;
+	public int freezeDetectionAnimationSize = 50; 
+	public int freezeDetectionAnimationOpacity = 127; 
+	public boolean warnOfStalledImageLoading = true;
 	
 	public String[] getHiddenCamsStringArray()
 	{

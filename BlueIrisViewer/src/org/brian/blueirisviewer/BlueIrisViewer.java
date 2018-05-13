@@ -36,15 +36,28 @@ public class BlueIrisViewer implements ApplicationListener
 	// private OrthographicCamera pixelPerfectCamera;
 	private SpriteBatch batch;
 
+	/**
+	 * Screen width in pixels.
+	 */
 	public static float fScreenWidth = 1;
+	/**
+	 * Screen height in pixels.
+	 */
 	public static float fScreenHeight = 1;
+	/**
+	 * Screen width in pixels.
+	 */
 	public static int iScreenWidth = 1;
+	/**
+	 * Screen height in pixels.
+	 */
 	public static int iScreenHeight = 1;
 
 	public static Images images;
 	public static UI ui;
 	public static BIVSettings bivSettings;
 	public static NightModeManager nightModeManager;
+	public static FreezeDetector freezeDetector;
 
 	private long lastResize = 0;
 	private long lastHandledResize = 0;
@@ -53,7 +66,7 @@ public class BlueIrisViewer implements ApplicationListener
 
 	public static WindowHelper windowHelper;
 
-	public static Texture texLightGray, texDarkGreen, texDarkGray, texRed;
+	public static Texture texLightGray, texDarkGreen, texDarkGray, texRed, texOpaqueRed;
 
 	public static boolean bLibjpegTurboAvailable = false;
 	public static String sScreenBrightnessProgramPath = null;
@@ -99,9 +112,12 @@ public class BlueIrisViewer implements ApplicationListener
 		texDarkGreen = Create1x1ColorTexture(new Color(0f, 0.444f, 0f, 0.5f));
 		texDarkGray = Create1x1ColorTexture(new Color(0.333f, 0.333f, 0.333f, 0.5f));
 		texRed = Create1x1ColorTexture(new Color(1f, 0f, 0f, 0.667f));
+		texOpaqueRed = Create1x1ColorTexture(new Color(1f, 0f, 0f, 1f));
 
 		images = new Images();
 		images.Initialize();
+		
+		freezeDetector = new FreezeDetector();
 	}
 
 	private Texture Create1x1ColorTexture(Color color)
@@ -123,6 +139,7 @@ public class BlueIrisViewer implements ApplicationListener
 		texDarkGreen.dispose();
 		texDarkGray.dispose();
 		texRed.dispose();
+		texOpaqueRed.dispose();
 	}
 
 	@Override
@@ -157,6 +174,8 @@ public class BlueIrisViewer implements ApplicationListener
 		GameTime.tick();
 
 		images.render(batch);
+		
+		freezeDetector.render(batch);
 
 		batch.end();
 		ui.render();

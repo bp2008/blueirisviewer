@@ -19,42 +19,37 @@ public class MainOptionsWnd extends UIElement
 	@Override
 	public void onCreate(final Skin skin, final Window window, final Table table)
 	{
+		table.columnDefaults(0).align(Align.center).padRight(20);
+		table.columnDefaults(1).align(Align.center);
 		table.pad(10, 10, 10, 10);
 
 		window.setTitle("BlueIrisView Options");
-		
-		AddWindowButton(new ServerSetupWnd(skin), "Server Setup", skin, table);
 
+		AddWindowButton(new ServerSetupWnd(skin), "Server Setup", skin, table);
+		AddWindowButton(new InstantReplayWnd(skin), "Instant Replay", skin, table);
+
+		table.row();
 		table.add().height(10);
 		table.row();
 
 		AddWindowButton(new WindowOptionsWnd(skin), "Window Options", skin, table);
+		AddWindowButton(new NightModeWnd(skin), "Night Mode", skin, table);
 
+		table.row();
 		table.add().height(10);
 		table.row();
 
 		AddWindowButton(new CameraLayoutWnd(skin), "Camera Layout", skin, table);
+		AddWindowButton(new FreezeDetectionWnd(skin), "Freeze Detection", skin, table);
 
+		table.row();
 		table.add().height(10);
 		table.row();
 
 		AddWindowButton(new PerformanceWnd(skin), "Performance", skin, table);
-
-		table.add().height(10);
-		table.row();
-
-		AddWindowButton(new InstantReplayWnd(skin), "Instant Replay", skin, table);
-
-		table.add().height(10);
-		table.row();
-
-		AddWindowButton(new NightModeWnd(skin), "Night Mode", skin, table);
-
-		table.add().height(10);
-		table.row();
-
 		AddWindowButton(new AboutWnd(skin), "About", skin, table);
 
+		table.row();
 		table.add().height(20);
 		table.row();
 
@@ -109,7 +104,6 @@ public class MainOptionsWnd extends UIElement
 		});
 
 		table.add(btn);
-		table.row();
 	}
 
 	@Override

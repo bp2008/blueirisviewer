@@ -4,6 +4,7 @@ import java.util.ArrayList;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.BitmapFont.TextBounds;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.Stage;
@@ -20,6 +21,7 @@ import com.badlogic.gdx.utils.viewport.ScreenViewport;
 public class UI
 {
 	private static Skin skin;
+	private static BitmapFont font;
 	public Stage stage;
 	public static ArrayList<UIElement> uiElements;
 	public static WidgetGroup root;
@@ -30,6 +32,7 @@ public class UI
 
 		stage = new Stage(new ScreenViewport());
 		skin = new Skin(Gdx.files.internal("data/uiskin.json"));
+		font = skin.getFont("default-font");
 
 		root = new WidgetGroup();
 		root.setFillParent(true);
@@ -45,7 +48,7 @@ public class UI
 				ele.doUpdate();
 		stage.act(Math.min(Gdx.graphics.getDeltaTime(), 1 / 30f));
 		stage.draw();
-		//Table.drawDebug(stage);
+		// Table.drawDebug(stage);
 	}
 
 	public void resize(int width, int height)
@@ -55,14 +58,23 @@ public class UI
 
 	public void dispose()
 	{
+		font = null;
 		stage.dispose();
 		skin.dispose();
 	}
 
-	public void DrawText(SpriteBatch batch, String text, float x, float y)
+	public TextBounds DrawText(SpriteBatch batch, String text, float x, float y)
 	{
-		BitmapFont font = skin.getFont("default-font");
-		font.draw(batch, text, x, y);
+		if(font == null)
+			return new TextBounds();
+		return font.draw(batch, text, x, y);
+	}
+
+	public TextBounds MeasureText(String text)
+	{
+		if(font == null)
+			return new TextBounds();
+		return font.getBounds(text);
 	}
 
 	public void openWindow(Class<?> windowClass)
@@ -71,10 +83,11 @@ public class UI
 			if (ele.getClass().getSimpleName().equals(windowClass.getSimpleName()))
 				ele.show();
 	}
+
 	public boolean isAnyWindowOpen()
 	{
 		for (UIElement ele : uiElements)
-			if(ele.isShowing())
+			if (ele.isShowing())
 				return true;
 		return false;
 	}
@@ -92,8 +105,7 @@ public class UI
 	}
 
 	/**
-	 * Shows a modal dialog in the center of the display window, asking the user a question with "Yes" and "No" answer
-	 * buttons at the bottom of the dialog.
+	 * Shows a modal dialog in the center of the display window, asking the user a question with "Yes" and "No" answer buttons at the bottom of the dialog.
 	 * 
 	 * @param question
 	 *            The question to ask the user.
@@ -104,15 +116,13 @@ public class UI
 	 * @param actionOnNo
 	 *            A Runnable to execute if the user's answer is No. May be null.
 	 */
-	public static void showYesNoQuestionDialog(String question, String title, final Runnable actionOnYes,
-			final Runnable actionOnNo)
+	public static void showYesNoQuestionDialog(String question, String title, final Runnable actionOnYes, final Runnable actionOnNo)
 	{
 		showYesNoQuestionDialog(question, title, actionOnYes, actionOnNo, true);
 	}
 
 	/**
-	 * Shows a dialog in the center of the display window, asking the user a question with "Yes" and "No" answer buttons
-	 * at the bottom of the dialog.
+	 * Shows a dialog in the center of the display window, asking the user a question with "Yes" and "No" answer buttons at the bottom of the dialog.
 	 * 
 	 * @param question
 	 *            The question to ask the user.
@@ -123,8 +133,7 @@ public class UI
 	 * @param actionOnNo
 	 *            A Runnable to execute if the user's answer is No. May be null.
 	 */
-	public static void showYesNoQuestionDialog(String question, String title, final Runnable actionOnYes,
-			final Runnable actionOnNo, boolean modal)
+	public static void showYesNoQuestionDialog(String question, String title, final Runnable actionOnYes, final Runnable actionOnNo, boolean modal)
 	{
 		final Table dialogWrapperTable = new Table(skin);
 		dialogWrapperTable.setFillParent(true);
