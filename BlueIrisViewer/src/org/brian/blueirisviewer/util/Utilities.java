@@ -266,9 +266,9 @@ public class Utilities
 		return Utilities.ToString(bytes);
 	}
 
-	private static Pattern sessionCookieFinder = Pattern.compile("session=(.*?); path=/;");
+	private static Pattern sessionCookieFinder = Pattern.compile("session=(.*?);"); // " path=/;"
 
-	private static void HandleSetCookie(String setCookie)
+	public static void HandleSetCookie(String setCookie)
 	{
 		if (setCookie == null || setCookie.equals(""))
 			return;

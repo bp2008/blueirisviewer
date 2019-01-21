@@ -120,6 +120,8 @@ public class HttpHelper
 			in = new BufferedInputStream(inStream);
 			if (enc != null && string.ToLower(enc).equals("gzip"))
 				in = new GZIPInputStream(inStream);
+			
+			Utilities.HandleSetCookie(con.getHeaderField("Set-Cookie"));
 
 			return in;
 		}
